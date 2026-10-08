@@ -13,6 +13,7 @@ export default defineConfig(({ command }) => {
     server: {
       host: "::",
       port: 8080,
+      allowedHosts: ["kjgspl-ai-marriage-webapp.onrender.com"],
     },
     resolve: {
       tsconfigPaths: true,
