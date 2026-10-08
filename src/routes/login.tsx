@@ -87,7 +87,21 @@ function LoginPage() {
           {/* View 1 — sign in */}
           <div className="auth-view" aria-hidden={mode !== "signin"}>
             <form className="stack-4" onSubmit={handleSubmit((v) => login.mutate(v))} noValidate>
-              <Field id="email" label="Email" type="email" autoComplete="email" placeholder="you@example.com" {...register("email")} error={formState.errors.email?.message} />
+              <Field
+                id="email"
+                label="Email Address"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                icon={
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                }
+                {...register("email")}
+                error={formState.errors.email?.message}
+              />
               <div>
                 <Field
                   id="password"
@@ -95,6 +109,12 @@ function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Enter your password"
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  }
                   {...register("password")}
                   error={formState.errors.password?.message}
                   action={
@@ -111,22 +131,68 @@ function LoginPage() {
                 </div>
               </div>
               {needsMfa && (
-                <Field id="mfaCode" label="Authenticator code" inputMode="numeric" maxLength={6} placeholder="6-digit code" {...register("mfaCode")} error={formState.errors.mfaCode?.message} />
+                <Field
+                  id="mfaCode"
+                  label="Authenticator code"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="6-digit code"
+                  icon={
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                    </svg>
+                  }
+                  {...register("mfaCode")}
+                  error={formState.errors.mfaCode?.message}
+                />
               )}
               {login.error && (
                 <p className="ds-field__hint ds-field__hint--error" role="alert">
                   {login.error.message}
                 </p>
               )}
-              <Button type="submit" loading={login.isPending} size="lg" style={{ width: "100%" }}>
-                Sign in
+              <Button
+                type="submit"
+                loading={login.isPending}
+                size="lg"
+                style={{
+                  width: "100%",
+                  background: "linear-gradient(135deg, #ea580c 0%, #be123c 100%)",
+                  border: "none",
+                  boxShadow: "0 4px 14px rgba(234, 88, 12, 0.35)",
+                  fontWeight: 600,
+                  letterSpacing: "0.02em",
+                }}
+              >
+                Sign in to your account
               </Button>
-              <Text variant="small" style={{ textAlign: "center" }}>
-                New here?{" "}
-                <button type="button" className="auth-link" onClick={() => navigate({ to: "/register" })}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  paddingTop: "0.5rem",
+                  borderTop: "1px solid var(--border, #f1f5f9)",
+                  marginTop: "0.5rem",
+                }}
+              >
+                <Text variant="small" style={{ color: "var(--muted, #64748b)" }}>
+                  Don&apos;t have an account yet?
+                </Text>
+                <button
+                  type="button"
+                  className="auth-link"
+                  onClick={() => navigate({ to: "/register" })}
+                  style={{
+                    fontSize: "0.88rem",
+                    fontWeight: 700,
+                    color: "var(--rose-active, #ea580c)",
+                  }}
+                >
                   Create an account
                 </button>
-              </Text>
+              </div>
             </form>
           </div>
 

@@ -6,6 +6,8 @@ export interface Prompt {
 export interface Profile {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   age?: number;
   city?: string;
   gender?: string;
@@ -23,6 +25,10 @@ export interface Profile {
   photoUrl?: string | null;
   mainPhotoUrl?: string | null;
   cultural?: Record<string, string | null>;
+  alignment?: number;
+  isVerified?: boolean;
+  connectionState?: string;
+  matchId?: string;
   [key: string]: unknown;
 }
 
@@ -44,6 +50,10 @@ export interface DiscoveryResponse {
   items: Profile[];
   exposedToday?: number;
   dailyLimit?: number;
+  remaining?: number;
+  day?: string;
+  configVersion?: number;
+  mode?: string;
   reason?: string;
   page: number;
   hasMore: boolean;
@@ -56,6 +66,43 @@ export interface Connections {
   received?: Profile[];
   mutual?: Profile[];
   [key: string]: unknown;
+}
+
+export interface ConnectionCounts {
+  savedCount?: number;
+  sentCount?: number;
+  receivedCount?: number;
+  mutualCount?: number;
+}
+
+export interface ConnectionCategoryResponse {
+  category: "saved" | "sent" | "received" | "mutual" | string;
+  items: Profile[];
+  page: number;
+  nextPage: number | null;
+  hasMore: boolean;
+  total?: number;
+}
+
+export interface MeetupProposal {
+  id: string;
+  proposerId: string;
+  receiverId: string;
+  proposedDate: string;
+  proposedTime: string;
+  note?: string;
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | string;
+  latitude?: number;
+  longitude?: number;
+  locationName?: string;
+}
+
+export interface MapConfig {
+  enabled?: boolean;
+  defaultLat?: number;
+  defaultLng?: number;
+  zoom?: number;
+  apiKey?: string;
 }
 
 export interface Conversation {
@@ -71,7 +118,10 @@ export interface Message {
   text: string;
   from: string;
   createdAt: string;
-  type?: string;
+  type?: "text" | "image" | "file" | "call" | string;
+  mediaUrl?: string;
+  fileName?: string;
+  fileSize?: string;
 }
 
 export interface AppNotification {

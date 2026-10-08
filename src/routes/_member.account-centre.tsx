@@ -19,7 +19,7 @@ export const Route = createFileRoute("/_member/account-centre")({
 
 type TabType = "governance" | "channels" | "membership" | "receipts";
 
-export function AccountCentrePage() {
+function AccountCentrePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>("governance");

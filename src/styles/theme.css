@@ -145,15 +145,61 @@
 
 /* ---------- Site header ---------- */
 .ds-header {
-  position: sticky; top: 0; z-index: 100; background: var(--glass);
-  backdrop-filter: blur(var(--blur-glass)); border-bottom: 1px solid var(--glass-line);
-  padding: var(--space-4) 5%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(250, 245, 240, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-line);
+  padding: 0 4%;
+  height: 4.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  box-shadow: 0 4px 20px rgba(65, 28, 43, 0.03);
 }
-.ds-header__brand { font-family: var(--font-serif); font-size: var(--text-xl); color: var(--ink); text-decoration: none; letter-spacing: var(--tracking-tight); }
-.ds-header__nav { display: flex; gap: var(--space-6); align-items: center; flex-wrap: wrap; }
-.ds-navlink { color: var(--muted); font-weight: 500; text-decoration: none; font-size: var(--text-sm); transition: color var(--ease); }
-.ds-navlink:hover, .ds-navlink[aria-current="page"] { color: var(--rose-active); }
-.ds-navlink:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: var(--radius-sm); }
+.ds-header__brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.ds-header__nav {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: center;
+}
+.ds-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+.ds-navlink {
+  color: var(--muted);
+  font-weight: 500;
+  text-decoration: none;
+  font-size: 0.9375rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--radius-pill);
+  transition: all var(--ease);
+}
+.ds-navlink:hover {
+  color: var(--ink);
+  background: rgba(65, 28, 43, 0.05);
+}
+.ds-navlink[aria-current="page"] {
+  color: var(--rose-active);
+  font-weight: 600;
+  background: rgba(177, 81, 101, 0.1);
+}
+.ds-navlink:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
 
 /* ---------- Divider ---------- */
 .ds-divider { border: 0; border-top: 1px solid var(--line); margin: var(--space-8) 0; }
+

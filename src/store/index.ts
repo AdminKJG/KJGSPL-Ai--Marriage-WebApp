@@ -25,6 +25,7 @@ const authSlice = createSlice({
 interface UiState {
   socketConnected: boolean;
   isOnline: boolean;
+  notificationsDrawerOpen: boolean;
 }
 
 const uiSlice = createSlice({
@@ -32,6 +33,7 @@ const uiSlice = createSlice({
   initialState: {
     socketConnected: false,
     isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
+    notificationsDrawerOpen: false,
   } as UiState,
   reducers: {
     socketStatus(state, action: PayloadAction<boolean>) {
@@ -39,6 +41,18 @@ const uiSlice = createSlice({
     },
     networkStatus(state, action: PayloadAction<boolean>) {
       state.isOnline = action.payload;
+    },
+    setNotificationsDrawerOpen(state, action: PayloadAction<boolean>) {
+      state.notificationsDrawerOpen = action.payload;
+    },
+    toggleNotificationsDrawer(state) {
+      state.notificationsDrawerOpen = !state.notificationsDrawerOpen;
+    },
+    openNotificationsDrawer(state) {
+      state.notificationsDrawerOpen = true;
+    },
+    closeNotificationsDrawer(state) {
+      state.notificationsDrawerOpen = false;
     },
   },
 });
@@ -134,7 +148,14 @@ const configSlice = createSlice({
 });
 
 export const { signedIn, signedOut } = authSlice.actions;
-export const { socketStatus, networkStatus } = uiSlice.actions;
+export const {
+  socketStatus,
+  networkStatus,
+  setNotificationsDrawerOpen,
+  toggleNotificationsDrawer,
+  openNotificationsDrawer,
+  closeNotificationsDrawer,
+} = uiSlice.actions;
 export const { callIncoming, callAccepted, callRejected, callEnded, callMissed, clearCall } =
   callingSlice.actions;
 export const { setConfig } = configSlice.actions;

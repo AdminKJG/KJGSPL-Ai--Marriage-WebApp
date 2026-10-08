@@ -8,12 +8,16 @@ import type {
   Call,
   CompatibilityResult,
   Connections,
+  ConnectionCategoryResponse,
+  ConnectionCounts,
   Conversation,
   DatePlan,
   DiscoveryResponse,
   EventItem,
   Gallery,
+  MapConfig,
   Me,
+  MeetupProposal,
   Message,
   PlatformConfig,
   Profile,
@@ -21,6 +25,36 @@ import type {
   StoryAnswer,
   VoiceTranscribeResponse,
 } from "./types";
+
+const LOCAL_SAVED_KEY = "am.savedProfileIds";
+
+export const getLocalSavedIds = (): string[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_SAVED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+export const addLocalSavedId = (id: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    const current = new Set(getLocalSavedIds());
+    current.add(id);
+    localStorage.setItem(LOCAL_SAVED_KEY, JSON.stringify(Array.from(current)));
+  } catch {}
+};
+
+export const removeLocalSavedId = (id: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    const current = new Set(getLocalSavedIds());
+    current.delete(id);
+    localStorage.setItem(LOCAL_SAVED_KEY, JSON.stringify(Array.from(current)));
+  } catch {}
+};
 
 export interface LoginInput {
   email: string;
@@ -63,27 +97,294 @@ export const authApi = {
     }),
 };
 
+export const discoveryApi = {
+  getFeed: (params: {
+    page?: number;
+    limit?: number;
+    city?: string;
+    minAge?: number | "";
+    maxAge?: number | "";
+    gender?: string;
+    interest?: string;
+    religion?: string;
+    caste?: string;
+    maritalStatus?: string;
+    education?: string;
+    occupation?: string;
+  } = {}) => {
+    const q = new URLSearchParams();
+    if (params.page) q.set("page", String(params.page));
+    if (params.limit) q.set("limit", String(params.limit ?? 10));
+    if (params.city && params.city !== "All cities") q.set("city", params.city);
+    if (params.minAge !== undefined && params.minAge !== "") q.set("minAge", String(params.minAge));
+    if (params.maxAge !== undefined && params.maxAge !== "") q.set("maxAge", String(params.maxAge));
+    if (params.gender && params.gender !== "all") q.set("gender", params.gender);
+    if (params.interest && params.interest !== "All interests") q.set("interest", params.interest);
+    if (params.religion) q.set("religion", params.religion);
+    if (params.caste) q.set("caste", params.caste);
+    if (params.maritalStatus) q.set("maritalStatus", params.maritalStatus);
+    if (params.education) q.set("education", params.education);
+    if (params.occupation) q.set("occupation", params.occupation);
+
+    const queryStr = q.toString();
+    return api<DiscoveryResponse>(`/v1/discovery${queryStr ? `?${queryStr}` : ""}`);
+  },
+
+  expressInterest: (targetUserId: string, message = "") =>
+    api<{ status: "sent" | "matched"; matchId?: string; message: string }>("/v1/interest", {
+      method: "POST",
+      body: { targetUserId, message },
+    }),
+
+  saveProfile: async (targetUserId: string) => {
+    try {
+      const res = await api<{ saved: boolean; targetUserId: string; message: string }>("/v1/saved", {
+        method: "POST",
+        body: { targetUserId },
+      });
+      addLocalSavedId(targetUserId);
+      return res;
+    } catch {
+      // Backend /v1/saved is not live on Render yet (returns 404). Save locally without secondary failing requests.
+      addLocalSavedId(targetUserId);
+      return {
+        saved: true,
+        targetUserId,
+        message: "Profile added to shortlists.",
+      };
+    }
+  },
+
+  unsaveProfile: async (targetUserId: string) => {
+    try {
+      const res = await api<{ saved: boolean; targetUserId: string; message: string }>(
+        `/v1/saved/${targetUserId}`,
+        { method: "DELETE" }
+      );
+      removeLocalSavedId(targetUserId);
+      return res;
+    } catch {
+      // Backend /v1/saved/:id is not live on Render yet (returns 404). Remove locally without secondary failing requests.
+      removeLocalSavedId(targetUserId);
+      return {
+        saved: false,
+        targetUserId,
+        message: "Profile removed from shortlists.",
+      };
+    }
+  },
+
+  passProfile: (targetUserId: string) =>
+    api<{ passed: boolean; targetUserId: string; message: string }>("/v1/discovery/pass", {
+      method: "POST",
+      body: { targetUserId },
+    }),
+
+  blockProfile: (targetUserId: string, reason = "") =>
+    api<{ blocked: boolean; targetUserId: string; message: string }>("/v1/block", {
+      method: "POST",
+      body: { targetUserId, reason },
+    }),
+
+  getCities: async (searchQuery = "") => {
+    if (!searchQuery.trim()) return { cities: [] };
+    try {
+      const res = await api<{ cities: string[] }>(
+        `/v1/locations/cities?q=${encodeURIComponent(searchQuery)}`
+      );
+      if (res?.cities && res.cities.length > 0) return res;
+    } catch {
+      // Backend endpoint fallback
+    }
+
+    try {
+      const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(searchQuery)}&osm_tag=place:city&limit=8&lang=en`;
+      const response = await fetch(url);
+      if (!response.ok) return { cities: [] };
+      const data = await response.json();
+      const cities: string[] = (data.features ?? [])
+        .map((f: any) => {
+          const props = f.properties ?? {};
+          const name = props.name;
+          const state = props.state;
+          const country = props.country;
+          if (!name) return null;
+          return [name, state, country].filter(Boolean).join(", ");
+        })
+        .filter((c: string | null): c is string => Boolean(c));
+
+      return { cities: Array.from(new Set(cities)) };
+    } catch {
+      return { cities: [] };
+    }
+  },
+};
+
+export const connectionsApi = {
+  getAll: async () => {
+    try {
+      const res = await api<Connections>("/v1/connections");
+      const localIds = getLocalSavedIds();
+      if (localIds.length > 0) {
+        const existingSaved = res?.saved ?? [];
+        const existingIds = new Set(existingSaved.map((s: any) => (typeof s === "string" ? s : s.id)));
+        const mergedSaved = [...existingSaved];
+        localIds.forEach((id) => {
+          if (!existingIds.has(id)) {
+            mergedSaved.push({ id } as Profile);
+          }
+        });
+        return { ...res, saved: mergedSaved };
+      }
+      return res;
+    } catch (err) {
+      const localIds = getLocalSavedIds();
+      if (localIds.length > 0) {
+        return {
+          saved: localIds.map((id) => ({ id } as Profile)),
+          sent: [],
+          received: [],
+          mutual: [],
+        } as Connections;
+      }
+      throw err;
+    }
+  },
+  getCategory: async (category: string, page = 1, limit = 10) => {
+    try {
+      return await api<ConnectionCategoryResponse>(
+        `/v1/connections/${category}?page=${page}&limit=${limit}`
+      );
+    } catch (err) {
+      if (category === "saved") {
+        const localIds = getLocalSavedIds();
+        return {
+          category: "saved",
+          items: localIds.map((id) => ({ id } as Profile)),
+          page,
+          limit,
+          total: localIds.length,
+          totalPages: 1,
+        };
+      }
+      throw err;
+    }
+  },
+  getCounts: async () => {
+    try {
+      const counts = await api<ConnectionCounts>("/v1/connections/counts");
+      const localIds = getLocalSavedIds();
+      return {
+        ...counts,
+        savedCount: Math.max(counts?.savedCount ?? 0, localIds.length),
+      };
+    } catch {
+      const localIds = getLocalSavedIds();
+      return {
+        savedCount: localIds.length,
+        sentCount: 0,
+        receivedCount: 0,
+        mutualCount: 0,
+      };
+    }
+  },
+  expressInterest: (targetUserId: string, message = "") =>
+    discoveryApi.expressInterest(targetUserId, message),
+  saveProfile: (targetUserId: string) => discoveryApi.saveProfile(targetUserId),
+  unsaveProfile: (targetUserId: string) => discoveryApi.unsaveProfile(targetUserId),
+  unmatch: (targetUserId: string) =>
+    api<{ unmatched: boolean; targetUserId: string; message: string }>("/v1/unmatch", {
+      method: "POST",
+      body: { targetUserId },
+    }),
+  block: (targetUserId: string, reason = "") => discoveryApi.blockProfile(targetUserId, reason),
+};
+
 export const profileApi = {
   updateMe: (body: Partial<Me>) => api<Me>("/v1/me", { method: "PATCH", body }),
   deleteMe: () => api("/v1/me", { method: "DELETE" }),
   action: (id: string, action: string, body?: unknown) =>
     api(`/v1/profiles/${id}/${action}`, { method: "POST", body: body ?? {} }),
-  interest: (id: string) =>
-    api<{ status: string; mutual: boolean; chatAvailable: boolean }>(`/v1/profiles/${id}/interest`, {
-      method: "POST",
-      body: {},
-    }),
+  interest: (id: string, message = "") =>
+    discoveryApi.expressInterest(id, message).catch(() =>
+      api<{ status: string; mutual: boolean; chatAvailable: boolean }>(`/v1/profiles/${id}/interest`, {
+        method: "POST",
+        body: { message },
+      })
+    ),
   connect: (id: string) => api(`/v1/profiles/${id}/connect`, { method: "POST", body: {} }),
   unmatch: (id: string) => api("/v1/unmatch", { method: "POST", body: { targetUserId: id } }),
-  block: (id: string) => api(`/v1/profiles/${id}/block`, { method: "POST", body: {} }),
+  block: (id: string, reason = "") =>
+    discoveryApi.blockProfile(id, reason).catch(() =>
+      api(`/v1/profiles/${id}/block`, { method: "POST", body: { reason } })
+    ),
   unblock: (id: string) => api(`/v1/profiles/${id}/unblock`, { method: "POST", body: {} }),
   report: (id: string, body: { reason: string; details?: string }) =>
     api(`/v1/profiles/${id}/report`, { method: "POST", body }),
 };
 
 export const chatApi = {
-  send: (profileId: string, text: string) =>
-    api<Message>(`/v1/messages/${profileId}`, { method: "POST", body: { text } }),
+  send: async (
+    profileId: string,
+    payload:
+      | string
+      | { text: string; type?: string; mediaUrl?: string; fileName?: string; fileSize?: string }
+  ) => {
+    const base = typeof payload === "string" ? { text: payload } : payload;
+    const body = {
+      text: base.text,
+      type: base.type ? base.type.toUpperCase() : "TEXT",
+      mediaUrl: base.mediaUrl,
+      fileName: base.fileName
+    };
+    return await api<any>(`/v1/messages/${profileId}`, { method: "POST", body });
+  },
+
+  editMessage: (messageId: string, content: string) =>
+    api<{ updated: boolean; messageId: string }>(`/v1/chat/messages/${messageId}`, {
+      method: "PATCH",
+      body: { content },
+    }),
+
+  deleteMessage: (messageId: string) =>
+    api<{ deleted: boolean }>(`/v1/chat/messages/${messageId}`, {
+      method: "DELETE",
+      body: { mode: "everyone" },
+    }),
+
+  getPresignedUrl: (filename: string, mimeType: string, fileSize: number) =>
+    api<{ uploadUrl: string; mediaId: string }>("/v1/chat/media/presigned-url", {
+      method: "POST",
+      body: { filename, mimeType, fileSize },
+    }),
+
+  confirmMedia: (mediaId: string, profileId: string) =>
+    api<{ confirmed: boolean; mediaUrl: string }>("/v1/chat/media/confirm", {
+      method: "POST",
+      body: { mediaId, profileId },
+    }),
+
+  uploadAndSendMedia: async (file: File, profileId: string, text?: string) => {
+    const presigned = await chatApi.getPresignedUrl(file.name, file.type, file.size);
+    
+    const uploadRes = await fetch(presigned.uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type },
+    });
+    
+    if (!uploadRes.ok) throw new Error("Failed to upload media");
+
+    const confirmRes = await chatApi.confirmMedia(presigned.mediaId, profileId);
+
+    return await chatApi.send(profileId, {
+      text: text || file.name,
+      type: file.type.startsWith("image/") ? "IMAGE" : "DOCUMENT",
+      mediaUrl: confirmRes.mediaUrl,
+      fileName: file.name,
+      fileSize: file.size.toString(),
+    });
+  },
 };
 
 export const mediaApi = {
@@ -215,6 +516,38 @@ export const aiApi = {
     ),
 };
 
+export const mapApi = {
+  getMyMeetups: () =>
+    api<{ meetups: MeetupProposal[] }>("/v1/map/my-meetups").then((r) => r.meetups ?? []),
+  getConfig: () => api<MapConfig>("/v1/map/config"),
+};
+
+export const meetupApi = {
+  propose: (body: {
+    targetUserId: string;
+    proposedDate: string;
+    proposedTime: string;
+    note?: string;
+    latitude?: number;
+    longitude?: number;
+    locationName?: string;
+  }) =>
+    api<{ meetup: MeetupProposal }>("/v1/meetups/propose", {
+      method: "POST",
+      body,
+    }).then((r) => r.meetup ?? (r as unknown as MeetupProposal)),
+  accept: (proposalId: string) =>
+    api<{ meetup: MeetupProposal }>(`/v1/meetups/${proposalId}/accept`, {
+      method: "POST",
+      body: {},
+    }).then((r) => r.meetup ?? (r as unknown as MeetupProposal)),
+  reject: (proposalId: string) =>
+    api(`/v1/meetups/${proposalId}/reject`, {
+      method: "POST",
+      body: {},
+    }),
+};
+
 // ---- Query options ----
 export const qk = {
   me: ["me"] as const,
@@ -222,6 +555,8 @@ export const qk = {
   compatibility: (id: string) => ["compatibility", id] as const,
   discovery: ["discovery"] as const,
   connections: ["connections"] as const,
+  connectionCategory: (category: string, page: number) => ["connections", category, page] as const,
+  connectionCounts: ["connections", "counts"] as const,
   conversations: ["conversations"] as const,
   messages: (id: string) => ["messages", id] as const,
   notifications: ["notifications"] as const,
@@ -234,6 +569,8 @@ export const qk = {
   config: ["config"] as const,
   call: (id: string) => ["call", id] as const,
   latestCall: (conversationId: string) => ["call", "latest", conversationId] as const,
+  myMeetups: ["map", "my-meetups"] as const,
+  mapConfig: ["map", "config"] as const,
 };
 
 export const meQuery = () =>
@@ -254,31 +591,114 @@ export const compatibilityQuery = (id: string) =>
     retry: false,
   });
 
-export const discoveryQuery = (page = 1) =>
-  queryOptions({
-    queryKey: [...qk.discovery, page],
-    queryFn: () => api<DiscoveryResponse>(`/v1/discovery?page=${page}&limit=20`),
-    staleTime: 30_000,
+export const discoveryQuery = (
+  params?: {
+    page?: number;
+    limit?: number;
+    city?: string;
+    minAge?: number | "";
+    maxAge?: number | "";
+    gender?: string;
+    interest?: string;
+    religion?: string;
+    caste?: string;
+    maritalStatus?: string;
+    education?: string;
+    occupation?: string;
+  } | number
+) => {
+  const filterParams = typeof params === "number" ? { page: params, limit: 10 } : { page: 1, limit: 10, ...params };
+  return queryOptions({
+    queryKey: [...qk.discovery, filterParams],
+    queryFn: () => discoveryApi.getFeed(filterParams),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
+};
 
 export const connectionsQuery = () =>
   queryOptions({
     queryKey: qk.connections,
-    queryFn: () => api<Connections>("/v1/connections"),
-    staleTime: 30_000,
+    queryFn: () => connectionsApi.getAll(),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+export const connectionCategoryQuery = (category: string, page = 1, limit = 10) =>
+  queryOptions({
+    queryKey: qk.connectionCategory(category, page),
+    queryFn: async (): Promise<ConnectionCategoryResponse> => {
+      const conn = await connectionsApi.getAll();
+      const items = (conn[category] as Profile[] | undefined) ?? [];
+      const total = items.length;
+      const paginatedItems = items.slice((page - 1) * limit, page * limit);
+      const hasMore = page * limit < total;
+      return {
+        category,
+        items: paginatedItems,
+        page,
+        nextPage: hasMore ? page + 1 : null,
+        hasMore,
+        total,
+      };
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
+    enabled: Boolean(category && category !== "all"),
+  });
+
+export const connectionCountsQuery = () =>
+  queryOptions({
+    queryKey: qk.connectionCounts,
+    queryFn: async (): Promise<ConnectionCounts> => {
+      const conn = await connectionsApi.getAll();
+      return {
+        savedCount: conn.saved?.length ?? 0,
+        sentCount: conn.sent?.length ?? 0,
+        receivedCount: conn.received?.length ?? 0,
+        mutualCount: conn.mutual?.length ?? 0,
+      };
+    },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
 export const conversationsQuery = () =>
   queryOptions({
     queryKey: qk.conversations,
-    queryFn: () => api<{ items: Conversation[] }>("/v1/messages").then((r) => r.items ?? []),
+    queryFn: async (): Promise<Conversation[]> => {
+      const r = await api<any>("/v1/messages");
+      const items = r.items || r.conversations || [];
+      return items.map((c: any) => ({
+        id: c.id || c.profileId,
+        profileId: c.profileId || c.peer?.id,
+        profile: c.profile || c.peer,
+        lastMessage: typeof c.lastMessage === 'string' ? c.lastMessage : {
+          text: c.lastMessage?.text || c.lastMessage?.content,
+          createdAt: c.lastMessage?.createdAt,
+        },
+        unread: c.unreadCount || c.unread || 0,
+      }));
+    },
     staleTime: 15_000,
   });
 
 export const messagesQuery = (profileId: string) =>
   queryOptions({
     queryKey: qk.messages(profileId),
-    queryFn: () => api<{ items: Message[] }>(`/v1/messages/${profileId}`).then((r) => r.items ?? []),
+    queryFn: async (): Promise<Message[]> => {
+      const r = await api<any>(`/v1/messages/${profileId}`);
+      const items = r.items || r.messages || [];
+      return items.map((m: any) => ({
+        id: m.id,
+        from: (m.senderId === profileId || m.from === profileId) ? profileId : "me",
+        text: m.text || m.content,
+        type: m.type ? m.type.toLowerCase() : "text",
+        mediaUrl: m.mediaUrl,
+        fileName: m.fileName,
+        createdAt: m.createdAt,
+      }));
+    },
     staleTime: 5_000,
   });
 
@@ -357,5 +777,20 @@ export const callQuery = (callId: string) =>
     queryFn: () => callsApi.get(callId).then((r) => r.call),
     enabled: !!callId,
     staleTime: 10_000,
+  });
+
+export const myMeetupsQuery = () =>
+  queryOptions({
+    queryKey: qk.myMeetups,
+    queryFn: () => mapApi.getMyMeetups(),
+    staleTime: 0,
+    refetchOnMount: "always",
+  });
+
+export const mapConfigQuery = () =>
+  queryOptions({
+    queryKey: qk.mapConfig,
+    queryFn: () => mapApi.getConfig(),
+    staleTime: 300_000,
   });
 

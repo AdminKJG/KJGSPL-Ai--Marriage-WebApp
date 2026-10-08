@@ -7,30 +7,35 @@ interface BrandLogoProps {
   className?: string;
 }
 
+const LOGO_HEIGHTS: Record<"sm" | "md" | "lg", string> = {
+  sm: "38px",
+  md: "46px",
+  lg: "56px",
+};
+
 export function BrandLogo({ to = "/", size = "md", dark = false, className = "" }: BrandLogoProps) {
+  const height = LOGO_HEIGHTS[size] || LOGO_HEIGHTS.md;
+
   const content = (
     <span className={`brand-lockup brand-lockup--${size} ${dark ? "brand-lockup--dark" : ""} ${className}`.trim()}>
-      <span className="brand-lockup__icon" aria-hidden="true">
-        <svg
-          viewBox="0 0 64 64"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="3.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M32 45 17 30C7 15 27 9 32 22c5-13 25-7 15 8Z" />
-        </svg>
-      </span>
-      <span className="brand-lockup__text">
-        ai marriage<span className="brand-lockup__dot">.</span>
-      </span>
+      <img
+        src="/assets/ai_marriage_logo.png"
+        alt="AI Marriage"
+        className="brand-logo-img"
+        style={{
+          height,
+          width: "auto",
+          maxHeight: "100%",
+          objectFit: "contain",
+          display: "block",
+        }}
+      />
     </span>
   );
 
   if (to) {
     return (
-      <Link to={to} className="brand-link">
+      <Link to={to} className="brand-link" style={{ display: "inline-flex", alignItems: "center" }}>
         {content}
       </Link>
     );
@@ -38,3 +43,4 @@ export function BrandLogo({ to = "/", size = "md", dark = false, className = "" 
 
   return content;
 }
+

@@ -13,10 +13,12 @@ export const SiteHeader = forwardRef<HTMLElement, SiteHeaderProps>(
   ({ brand, actions, className, children, ...props }, ref) => (
     <header ref={ref} className={cn("ds-header", className)} {...props}>
       <div className="ds-header__brand">{brand}</div>
-      <nav className="ds-header__nav" aria-label="Main">
-        {children}
-        {actions}
-      </nav>
+      {children && (
+        <nav className="ds-header__nav" aria-label="Main">
+          {children}
+        </nav>
+      )}
+      {actions && <div className="ds-header__actions">{actions}</div>}
     </header>
   ),
 );

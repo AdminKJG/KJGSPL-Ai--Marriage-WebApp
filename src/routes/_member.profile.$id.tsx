@@ -48,7 +48,8 @@ function ProfilePage() {
   const interest = useMutation({
     mutationFn: () => profileApi.interest(id),
     onSuccess: (r) => {
-      setStatus(r.mutual ? "It's mutual — you can now chat." : "Interest sent.");
+      const isMutual = r.status === "matched" || ("mutual" in r && Boolean(r.mutual));
+      setStatus(isMutual ? "It's mutual — you can now chat." : "Interest sent.");
       refresh();
     },
   });

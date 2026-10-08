@@ -1,20 +1,19 @@
-import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { BellIcon } from "@/components/icons/NavIcons";
+import { toggleNotificationsDrawer, useAppDispatch, useAppSelector } from "@/store";
 
 interface NotificationBellProps {
   unread?: number;
 }
 
 export function NotificationBell({ unread = 0 }: NotificationBellProps) {
-  const navigate = useNavigate();
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isActive = pathname === "/notifications" || pathname.startsWith("/notifications/");
+  const dispatch = useAppDispatch();
+  const isOpen = useAppSelector((state) => state.ui.notificationsDrawerOpen);
 
   return (
     <button
       type="button"
-      className={`header-bell-btn${isActive ? " header-bell-btn--active" : ""}`}
-      onClick={() => navigate({ to: "/notifications" })}
+      className={`header-bell-btn${isOpen ? " header-bell-btn--active" : ""}`}
+      onClick={() => dispatch(toggleNotificationsDrawer())}
       aria-label={unread > 0 ? `${unread} unread notifications` : "Notifications"}
       title={unread > 0 ? `${unread} unread notifications` : "Notifications"}
     >

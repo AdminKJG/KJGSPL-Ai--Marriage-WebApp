@@ -26,6 +26,7 @@ import {
   useAppSelector,
 } from "@/store";
 
+import { NotificationSidebar } from "@/components/nav/NotificationSidebar";
 import { IncomingCallModal } from "@/components/calling/IncomingCallModal";
 import { ActiveCallModal } from "@/components/calling/ActiveCallModal";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -172,6 +173,7 @@ function MemberLayout() {
         </ErrorBoundary>
       </main>
       <MobileBottomNav />
+      <NotificationSidebar />
       <IncomingCallModal />
       <ActiveCallModal />
     </>

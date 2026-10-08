@@ -4,6 +4,7 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  Link,
 } from "@tanstack/react-router";
 import { useState, type ReactNode } from "react";
 import { Provider as ReduxProvider } from "react-redux";
@@ -31,7 +32,45 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   }),
   shellComponent: RootShell,
   component: RootComponent,
+  notFoundComponent: NotFound,
 });
+
+function NotFound() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "60vh",
+        padding: "2rem",
+        textAlign: "center",
+        gap: "1rem",
+      }}
+    >
+      <h1 style={{ fontSize: "3rem", margin: 0, fontWeight: 700 }}>404</h1>
+      <h2 style={{ fontSize: "1.5rem", margin: 0 }}>Page Not Found</h2>
+      <p style={{ color: "var(--muted, #666)", maxWidth: "400px", margin: 0 }}>
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <Link
+        to="/"
+        style={{
+          marginTop: "1rem",
+          padding: "0.5rem 1.25rem",
+          backgroundColor: "var(--primary, #4f46e5)",
+          color: "#fff",
+          borderRadius: "0.375rem",
+          textDecoration: "none",
+          fontWeight: 500,
+        }}
+      >
+        Go Home
+      </Link>
+    </div>
+  );
+}
 
 function RootShell({ children }: { children: ReactNode }) {
   return (

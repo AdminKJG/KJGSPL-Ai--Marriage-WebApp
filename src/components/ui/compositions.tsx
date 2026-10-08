@@ -31,43 +31,70 @@ export interface FieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   action?: ReactNode;
+  icon?: ReactNode;
 }
 
-export const Field = forwardRef<HTMLInputElement, FieldProps>(({ id, label, error, action, style, ...props }, ref) => (
-  <div className="ds-field">
-    <Label htmlFor={id}>{label}</Label>
-    <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center" }}>
-      <Input
-        id={id}
-        ref={ref}
-        invalid={!!error}
-        aria-describedby={error ? `${id}-err` : undefined}
-        style={{ ...style, ...(action ? { paddingRight: "2.75rem" } : {}) }}
-        {...props}
-      />
-      {action && (
-        <div
+export const Field = forwardRef<HTMLInputElement, FieldProps>(
+  ({ id, label, error, action, icon, style, ...props }, ref) => (
+    <div className="ds-field">
+      <Label htmlFor={id}>{label}</Label>
+      <div style={{ position: "relative", width: "100%", display: "flex", alignItems: "center" }}>
+        {icon && (
+          <div
+            style={{
+              position: "absolute",
+              left: "0.85rem",
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+              color: "var(--muted-foreground, #94a3b8)",
+              pointerEvents: "none",
+            }}
+          >
+            {icon}
+          </div>
+        )}
+        <Input
+          id={id}
+          ref={ref}
+          invalid={!!error}
+          aria-describedby={error ? `${id}-err` : undefined}
           style={{
-            position: "absolute",
-            right: "0.625rem",
-            top: "50%",
-            transform: "translateY(-50%)",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 2,
-            pointerEvents: "auto",
+            ...style,
+            ...(icon ? { paddingLeft: "2.65rem" } : {}),
+            ...(action ? { paddingRight: "2.65rem" } : {}),
           }}
-        >
-          {action}
-        </div>
+          {...props}
+        />
+        {action && (
+          <div
+            style={{
+              position: "absolute",
+              right: "0.625rem",
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 2,
+              pointerEvents: "auto",
+            }}
+          >
+            {action}
+          </div>
+        )}
+      </div>
+      {error && (
+        <p className="ds-field__hint ds-field__hint--error" id={`${id}-err`} role="alert">
+          {error}
+        </p>
       )}
     </div>
-    {error && (
-      <p className="ds-field__hint ds-field__hint--error" id={`${id}-err`} role="alert">{error}</p>
-    )}
-  </div>
-));
+  )
+);
 Field.displayName = "Field";
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {

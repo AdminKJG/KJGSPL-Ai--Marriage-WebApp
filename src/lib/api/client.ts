@@ -3,7 +3,7 @@
 
 export const API_BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  "https://come-utopia-mournful.ngrok-free.dev";
+  "https://kjgspl-aimarriage-backend-nodejs.onrender.com";
 
 const ACCESS_KEY = "am.accessToken";
 const REFRESH_KEY = "am.refreshToken";
