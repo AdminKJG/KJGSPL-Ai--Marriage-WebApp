@@ -157,7 +157,19 @@ function AccountCentrePage() {
         </Card>
       )}
 
-      {account.isLoading && <LoadingState />}
+      {account.isLoading && (
+        <Card variant="surface">
+          <div className="stack-4">
+            <div className="skeleton-shimmer" style={{ width: "250px", height: "1.75rem", borderRadius: "6px" }} />
+            <div className="stack-2">
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "3rem", borderRadius: "8px" }} />
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "3rem", borderRadius: "8px" }} />
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "3rem", borderRadius: "8px" }} />
+            </div>
+            <div className="skeleton-shimmer" style={{ width: "120px", height: "2.5rem", borderRadius: "8px", marginTop: "1rem" }} />
+          </div>
+        </Card>
+      )}
       {account.error && <ErrorState error={account.error} />}
 
       <div className="stack-6">

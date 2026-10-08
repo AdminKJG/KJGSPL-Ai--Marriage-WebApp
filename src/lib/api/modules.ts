@@ -186,6 +186,12 @@ export const discoveryApi = {
       body: { targetUserId, reason },
     }),
 
+  unblockProfile: (targetUserId: string) =>
+    api<{ unblocked: boolean; targetUserId: string; message: string }>(`/v1/profiles/${targetUserId}/unblock`, {
+      method: "POST",
+      body: {},
+    }),
+
   getCities: async (searchQuery = "") => {
     if (!searchQuery.trim()) return { cities: [] };
     try {
@@ -325,47 +331,65 @@ export const profileApi = {
 
 export const chatApi = {
   send: async (
-    profileId: string,
+    conversationId: string,
     payload:
       | string
-      | { text: string; type?: string; mediaUrl?: string; fileName?: string; fileSize?: string }
+      | { text: string; type?: string; mediaUrl?: string; fileName?: string; fileSize?: string },
+    isBot: boolean = false
   ) => {
     const base = typeof payload === "string" ? { text: payload } : payload;
     const body = {
-      text: base.text,
+      content: base.text,
       type: base.type ? base.type.toUpperCase() : "TEXT",
       mediaUrl: base.mediaUrl,
       fileName: base.fileName
     };
-    return await api<any>(`/v1/messages/${profileId}`, { method: "POST", body });
+    const endpoint = isBot 
+      ? `/v1/bot/chat/conversations/${conversationId}/messages`
+      : `/v1/chat/conversations/${conversationId}/messages`;
+    return await api<any>(endpoint, { method: "POST", body });
   },
 
-  editMessage: (messageId: string, content: string) =>
-    api<{ updated: boolean; messageId: string }>(`/v1/chat/messages/${messageId}`, {
+  readMessage: (conversationId: string, messageIds: string[], isBot: boolean = false) => {
+    const endpoint = isBot 
+      ? `/v1/bot/chat/conversations/${conversationId}/read`
+      : `/v1/chat/conversations/${conversationId}/read`;
+    return api<{ count: number }>(endpoint, {
+      method: "POST",
+      body: { messageIds },
+    });
+  },
+
+  editMessage: (conversationId: string, messageId: string, content: string) =>
+    api<{ updated: boolean; messageId: string }>(`/v1/chat/conversations/${conversationId}/messages/${messageId}`, {
       method: "PATCH",
       body: { content },
     }),
 
-  deleteMessage: (messageId: string) =>
-    api<{ deleted: boolean }>(`/v1/chat/messages/${messageId}`, {
+  deleteMessage: (conversationId: string, messageId: string, mode: "for_everyone" | "for_me" = "for_everyone") =>
+    api<{ deleted: boolean }>(`/v1/chat/conversations/${conversationId}/messages/${messageId}`, {
       method: "DELETE",
-      body: { mode: "everyone" },
+      body: { mode },
     }),
 
-  getPresignedUrl: (filename: string, mimeType: string, fileSize: number) =>
-    api<{ uploadUrl: string; mediaId: string }>("/v1/chat/media/presigned-url", {
+  getPresignedUrl: (conversationId: string, filename: string, mimeType: string, fileSize: number, isBot: boolean = false) => {
+    const endpoint = isBot 
+      ? `/v1/bot/chat/${conversationId}/media/presigned-url`
+      : `/v1/chat/${conversationId}/media/presigned-url`;
+    return api<{ uploadUrl: string; objectKey: string; mediaId?: string }>(endpoint, {
       method: "POST",
-      body: { filename, mimeType, fileSize },
-    }),
+      body: { fileName: filename, mimeType, fileSize, type: "IMAGE" },
+    });
+  },
 
-  confirmMedia: (mediaId: string, profileId: string) =>
+  confirmMedia: (mediaId: string, conversationId: string) =>
     api<{ confirmed: boolean; mediaUrl: string }>("/v1/chat/media/confirm", {
       method: "POST",
-      body: { mediaId, profileId },
+      body: { mediaId, conversationId },
     }),
 
-  uploadAndSendMedia: async (file: File, profileId: string, text?: string) => {
-    const presigned = await chatApi.getPresignedUrl(file.name, file.type, file.size);
+  uploadAndSendMedia: async (file: File, conversationId: string, text?: string, isBot: boolean = false) => {
+    const presigned = await chatApi.getPresignedUrl(conversationId, file.name, file.type, file.size, isBot);
     
     const uploadRes = await fetch(presigned.uploadUrl, {
       method: "PUT",
@@ -375,15 +399,19 @@ export const chatApi = {
     
     if (!uploadRes.ok) throw new Error("Failed to upload media");
 
-    const confirmRes = await chatApi.confirmMedia(presigned.mediaId, profileId);
+    let finalMediaUrl = presigned.objectKey;
+    if (presigned.mediaId) {
+      const confirmRes = await chatApi.confirmMedia(presigned.mediaId, conversationId);
+      finalMediaUrl = confirmRes.mediaUrl;
+    }
 
-    return await chatApi.send(profileId, {
+    return await chatApi.send(conversationId, {
       text: text || file.name,
       type: file.type.startsWith("image/") ? "IMAGE" : "DOCUMENT",
-      mediaUrl: confirmRes.mediaUrl,
+      mediaUrl: finalMediaUrl,
       fileName: file.name,
       fileSize: file.size.toString(),
-    });
+    }, isBot);
   },
 };
 
@@ -471,6 +499,8 @@ export const billingApi = {
       "/v1/boosts/activate",
       { method: "POST", body: {} }
     ),
+  getBoostStatus: () => api<{ balance: number; activeBoost?: any }>("/v1/boosts/status"),
+  getBoostSummary: () => api<{ summary: any }>("/v1/boosts/summary"),
 };
 
 export const accountApi = {
@@ -564,6 +594,8 @@ export const qk = {
   story: ["story"] as const,
   events: ["events"] as const,
   billing: ["billing"] as const,
+  boostStatus: ["boost", "status"] as const,
+  boostSummary: ["boost", "summary"] as const,
   account: ["account"] as const,
   accountCentre: ["account-centre"] as const,
   config: ["config"] as const,
@@ -667,12 +699,13 @@ export const conversationsQuery = () =>
   queryOptions({
     queryKey: qk.conversations,
     queryFn: async (): Promise<Conversation[]> => {
-      const r = await api<any>("/v1/messages");
-      const items = r.items || r.conversations || [];
+      const r = await api<any>("/v1/chat/conversations");
+      const items = Array.isArray(r) ? r : (r.data || r.items || r.conversations || []);
       return items.map((c: any) => ({
         id: c.id || c.profileId,
-        profileId: c.profileId || c.peer?.id,
-        profile: c.profile || c.peer,
+        isBot: c.isBot ?? (c.recipient?.isBot ?? false),
+        profileId: c.recipient?.id || c.profileId || c.peer?.id,
+        profile: c.recipient || c.profile || c.peer,
         lastMessage: typeof c.lastMessage === 'string' ? c.lastMessage : {
           text: c.lastMessage?.text || c.lastMessage?.content,
           createdAt: c.lastMessage?.createdAt,
@@ -683,12 +716,15 @@ export const conversationsQuery = () =>
     staleTime: 15_000,
   });
 
-export const messagesQuery = (profileId: string) =>
+export const messagesQuery = (conversationId: string, profileId: string, isBot: boolean = false) =>
   queryOptions({
-    queryKey: qk.messages(profileId),
+    queryKey: qk.messages(conversationId),
     queryFn: async (): Promise<Message[]> => {
-      const r = await api<any>(`/v1/messages/${profileId}`);
-      const items = r.items || r.messages || [];
+      const endpoint = isBot 
+        ? `/v1/bot/chat/conversations/${conversationId}/messages`
+        : `/v1/chat/conversations/${conversationId}/messages`;
+      const r = await api<any>(endpoint);
+      const items = r.data?.messages || r.data || r.items || r.messages || [];
       return items.map((m: any) => ({
         id: m.id,
         from: (m.senderId === profileId || m.from === profileId) ? profileId : "me",
@@ -700,6 +736,7 @@ export const messagesQuery = (profileId: string) =>
       }));
     },
     staleTime: 5_000,
+    enabled: Boolean(conversationId),
   });
 
 export const notificationsQuery = () =>
@@ -747,6 +784,20 @@ export const billingQuery = () =>
   queryOptions({
     queryKey: qk.billing,
     queryFn: () => api<BillingState>("/v1/billing"),
+    staleTime: 60_000,
+  });
+
+export const boostStatusQuery = () =>
+  queryOptions({
+    queryKey: qk.boostStatus,
+    queryFn: () => billingApi.getBoostStatus(),
+    staleTime: 30_000,
+  });
+
+export const boostSummaryQuery = () =>
+  queryOptions({
+    queryKey: qk.boostSummary,
+    queryFn: () => billingApi.getBoostSummary(),
     staleTime: 60_000,
   });
 

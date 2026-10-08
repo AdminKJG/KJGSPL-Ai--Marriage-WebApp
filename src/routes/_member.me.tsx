@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Heading, Label, Text, Textarea } from "@/components/ui";
 import { ErrorState, Field, LoadingState, PageHeader } from "@/components/ui";
 import { CrownIcon, GearIcon, ShieldCheckIcon, SparklesIcon } from "@/components/icons/NavIcons";
@@ -22,6 +22,24 @@ export const Route = createFileRoute("/_member/me")({
   component: MePage,
 });
 
+const TOPICS = [
+  { id: "marriage_timing", label: "Marriage Timing", options: ["Within 1 year", "1-2 years", "2-3 years", "Not sure yet"] },
+  { id: "children", label: "Children", options: ["Want someday", "Do not want", "Have & want more", "Have & do not want more"] },
+  { id: "diet", label: "Diet", options: ["Vegetarian", "Vegan", "Halal", "Kosher", "No restrictions"] },
+  { id: "smoking", label: "Smoking", options: ["Never", "Occasionally", "Regularly"] },
+  { id: "career_partnership", label: "Career Ambition", options: ["Very ambitious", "Balanced", "Work to live"] },
+  { id: "money_management", label: "Finances", options: ["Saver", "Balanced", "Spender"] },
+  { id: "social_rhythm", label: "Social Life", options: ["Introvert (Homebody)", "Ambivert", "Extrovert (Outgoing)"] },
+  { id: "shared_language", label: "Communication", options: ["Direct & open", "Thoughtful & measured", "Non-confrontational"] },
+  { id: "handling_disagreement", label: "Conflict Resolution", options: ["Discuss immediately", "Need time to process", "Avoid if possible"] },
+  { id: "family_living", label: "Household Chores", options: ["Split equally", "Traditional roles", "Flexible/Outsource"] },
+  { id: "relocation", label: "Relocation", options: ["Willing to move anywhere", "Move within country", "Prefer to stay put"] },
+  { id: "culture_traditions", label: "Pets", options: ["Must have pets", "Open to pets", "No pets please"] },
+  { id: "shared_activities", label: "Travel", options: ["Frequent traveler", "Occasional vacations", "Prefer staying home"] }
+];
+type TierList = { ideal: string[]; accepted: string[]; stretch: string[] };
+type TopicPreferencesState = Record<string, TierList>;
+
 const list = z.string().optional();
 const schema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -33,6 +51,9 @@ const schema = z.object({
   languages: list,
   minAge: z.coerce.number().min(18).max(99).optional(),
   maxAge: z.coerce.number().min(18).max(99).optional(),
+  gender: z.string().optional(),
+  cities: list,
+  settlementCities: list,
 });
 type FormValues = z.infer<typeof schema>;
 const toList = (s?: string) => (s ? s.split(",").map((x) => x.trim()).filter(Boolean) : []);
@@ -45,8 +66,26 @@ function MePage() {
     resolver: zodResolver(schema) as any,
   });
 
+  const [topicPrefs, setTopicPrefs] = useState<TopicPreferencesState>({});
+  const updatePreference = (topicId: string, option: string, tier: 'ideal' | 'accepted' | 'stretch') => {
+    setTopicPrefs((prev) => {
+      const current = prev[topicId] || { ideal: [], accepted: [], stretch: [] };
+      if (current[tier].includes(option)) {
+         return { ...prev, [topicId]: { ...current, [tier]: current[tier].filter((opt: string) => opt !== option) } };
+      }
+      return {
+        ...prev,
+        [topicId]: {
+          ideal: tier === 'ideal' ? [...current.ideal.filter((o: string) => o !== option), option] : current.ideal.filter((o: string) => o !== option),
+          accepted: tier === 'accepted' ? [...current.accepted.filter((o: string) => o !== option), option] : current.accepted.filter((o: string) => o !== option),
+          stretch: tier === 'stretch' ? [...current.stretch.filter((o: string) => o !== option), option] : current.stretch.filter((o: string) => o !== option),
+        }
+      };
+    });
+  };
+
   useEffect(() => {
-    if (me)
+    if (me) {
       reset({
         name: me.name,
         city: me.city ?? "",
@@ -57,7 +96,12 @@ function MePage() {
         languages: (me.languages ?? []).join(", "),
         minAge: me.preferences?.minAge,
         maxAge: me.preferences?.maxAge,
+        gender: me.preferences?.gender ?? "all",
+        cities: (me.preferences?.cities ?? []).join(", "),
+        settlementCities: (me.preferences?.settlementCities ?? []).join(", "),
       });
+      setTopicPrefs(me.preferences?.topicPreferences ?? {});
+    }
   }, [me, reset]);
 
   const save = useMutation({
@@ -70,7 +114,15 @@ function MePage() {
         bio: v.bio,
         futurePlans: v.futurePlans,
         languages: toList(v.languages),
-        preferences: { ...me?.preferences, minAge: v.minAge, maxAge: v.maxAge },
+        preferences: { 
+          ...me?.preferences, 
+          minAge: v.minAge, 
+          maxAge: v.maxAge,
+          gender: v.gender,
+          cities: toList(v.cities),
+          settlementCities: toList(v.settlementCities),
+          topicPreferences: topicPrefs
+        },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.me }),
   });
@@ -79,7 +131,74 @@ function MePage() {
     onSuccess: (r) => r.choices?.[0] && setValue("bio", r.choices[0].text),
   });
 
-  if (isLoading) return <LoadingState />;
+  if (isLoading) {
+    return (
+      <div className="stack-6" style={{ padding: "1.5rem", maxWidth: "900px", margin: "0 auto" }}>
+        {/* Header Skeleton exactly matching PageHeader */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+          <div className="stack-2">
+            <div className="skeleton-shimmer" style={{ width: "220px", height: "3rem", borderRadius: "8px", marginBottom: "0.25rem" }} />
+            <div className="skeleton-shimmer" style={{ width: "320px", height: "1.2rem", borderRadius: "4px" }} />
+          </div>
+          <div className="row-2 wrap">
+            <div className="skeleton-shimmer" style={{ width: "110px", height: "2.25rem", borderRadius: "999px" }} />
+            <div className="skeleton-shimmer" style={{ width: "90px", height: "2.25rem", borderRadius: "999px" }} />
+            <div className="skeleton-shimmer" style={{ width: "100px", height: "2.25rem", borderRadius: "999px" }} />
+            <div className="skeleton-shimmer" style={{ width: "150px", height: "2.25rem", borderRadius: "999px" }} />
+          </div>
+        </div>
+        
+        {/* Gallery (Photos) Skeleton exactly matching the Gallery card */}
+        <Card variant="surface">
+          <div className="stack-4">
+            <div className="row-2 between">
+              <div className="skeleton-shimmer" style={{ width: "90px", height: "1.75rem", borderRadius: "6px" }} />
+              <div className="skeleton-shimmer" style={{ width: "110px", height: "2.25rem", borderRadius: "999px" }} />
+            </div>
+            <div className="skeleton-shimmer" style={{ width: "380px", height: "1rem", borderRadius: "4px" }} />
+            <div className="grid-cards">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="skeleton-shimmer" style={{ aspectRatio: "3/4", borderRadius: "12px", opacity: 1 - i * 0.15 }} />
+              ))}
+            </div>
+          </div>
+        </Card>
+
+        {/* Form (Details) Skeleton exactly matching the Details card */}
+        <Card>
+          <div className="stack-4" style={{ padding: "2rem" }}>
+            <div className="skeleton-shimmer" style={{ width: "100px", height: "1.75rem", borderRadius: "6px" }} />
+            <div className="grid-2">
+              <div className="stack-2">
+                <div className="skeleton-shimmer" style={{ width: "50px", height: "1rem", borderRadius: "4px" }} />
+                <div className="skeleton-shimmer" style={{ width: "100%", height: "2.75rem", borderRadius: "8px" }} />
+              </div>
+              <div className="stack-2">
+                <div className="skeleton-shimmer" style={{ width: "40px", height: "1rem", borderRadius: "4px" }} />
+                <div className="skeleton-shimmer" style={{ width: "100%", height: "2.75rem", borderRadius: "8px" }} />
+              </div>
+              <div className="stack-2">
+                <div className="skeleton-shimmer" style={{ width: "90px", height: "1rem", borderRadius: "4px" }} />
+                <div className="skeleton-shimmer" style={{ width: "100%", height: "2.75rem", borderRadius: "8px" }} />
+              </div>
+              <div className="stack-2">
+                <div className="skeleton-shimmer" style={{ width: "80px", height: "1rem", borderRadius: "4px" }} />
+                <div className="skeleton-shimmer" style={{ width: "100%", height: "2.75rem", borderRadius: "8px" }} />
+              </div>
+            </div>
+            <div className="stack-2" style={{ marginTop: "1rem" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div className="skeleton-shimmer" style={{ width: "80px", height: "1.25rem", borderRadius: "4px" }} />
+                <div className="skeleton-shimmer" style={{ width: "100px", height: "1.5rem", borderRadius: "4px" }} />
+              </div>
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "7rem", borderRadius: "8px" }} />
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  
   if (error) return <ErrorState error={error} />;
 
   return (
@@ -132,10 +251,41 @@ function MePage() {
             <Label htmlFor="futurePlans">Future plans</Label>
             <Textarea id="futurePlans" rows={3} {...register("futurePlans")} />
           </div>
-          <Heading level="h3">Looking for</Heading>
+          <Heading level="h3">Looking for (Partner Preferences)</Heading>
           <div className="grid-2">
+            <div className="ds-field">
+              <Label htmlFor="gender">Gender</Label>
+              <select id="gender" style={{ width: "100%", padding: "0.625rem", borderRadius: "8px", border: "1px solid var(--border, #e5e7eb)", background: "transparent", color: "inherit", fontFamily: "inherit" }} {...register("gender")}>
+                <option value="all">Any</option>
+                <option value="woman">Woman</option>
+                <option value="man">Man</option>
+                <option value="non-binary">Non-binary</option>
+              </select>
+            </div>
             <Field id="minAge" label="Minimum age" type="number" {...register("minAge")} error={formState.errors.minAge?.message} />
             <Field id="maxAge" label="Maximum age" type="number" {...register("maxAge")} error={formState.errors.maxAge?.message} />
+            <Field id="cities" label="Preferred Cities (comma separated)" {...register("cities")} />
+            <Field id="settlementCities" label="Settlement Cities (comma separated)" {...register("settlementCities")} />
+          </div>
+          <Heading level="h3" style={{ marginTop: "2rem" }}>16-Topic Compatibility</Heading>
+          <div className="stack-4">
+            {TOPICS.map((topic) => (
+              <div key={topic.id} className="ds-field stack-2" style={{ padding: "1rem", background: "var(--surface-sunken, rgba(0,0,0,0.02))", borderRadius: "8px" }}>
+                <Label>{topic.label}</Label>
+                <div className="stack-3">
+                  {topic.options.map((opt) => (
+                    <div key={opt} style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                      <span style={{ flex: 1, fontSize: "0.875rem" }}>{opt}</span>
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <Button type="button" size="sm" variant={topicPrefs[topic.id]?.ideal.includes(opt) ? "primary" : "outline"} onClick={() => updatePreference(topic.id, opt, "ideal")} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "auto" }}>Ideal</Button>
+                        <Button type="button" size="sm" variant={topicPrefs[topic.id]?.accepted.includes(opt) ? "primary" : "outline"} onClick={() => updatePreference(topic.id, opt, "accepted")} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "auto" }}>Accepted</Button>
+                        <Button type="button" size="sm" variant={topicPrefs[topic.id]?.stretch.includes(opt) ? "primary" : "outline"} onClick={() => updatePreference(topic.id, opt, "stretch")} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "auto" }}>Stretch</Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
           {(save.error || draft.error) && <p className="ds-field__hint ds-field__hint--error" role="alert">{(save.error ?? draft.error)?.message}</p>}
           {save.isSuccess && <Text variant="strong">Saved.</Text>}

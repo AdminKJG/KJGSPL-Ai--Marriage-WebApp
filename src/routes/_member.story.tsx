@@ -59,7 +59,21 @@ function StoryPage() {
         }
       />
 
-      {isLoading && <LoadingState />}
+      {isLoading && (
+        <div className="stack-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <div className="stack-3" style={{ padding: "1.5rem" }}>
+                <div className="skeleton-shimmer" style={{ width: "60%", height: "1.5rem", borderRadius: "6px" }} />
+                <div className="stack-2">
+                  <div className="skeleton-shimmer" style={{ width: "100%", height: "3rem", borderRadius: "8px" }} />
+                  <div className="skeleton-shimmer" style={{ width: "100%", height: "3rem", borderRadius: "8px" }} />
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
       {error && <ErrorState error={error} />}
 
       {activeTab === "questions" && (

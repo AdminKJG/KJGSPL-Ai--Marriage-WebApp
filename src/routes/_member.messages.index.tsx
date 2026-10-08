@@ -1,130 +1,69 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Avatar, Badge, Card, ErrorState, LoadingState, PageHeader, StateMessage } from "@/components/ui";
 import { conversationsQuery } from "@/lib/api/modules";
+import { useEffect } from "react";
+import { LoadingState, StateMessage } from "@/components/ui";
 
 export const Route = createFileRoute("/_member/messages/")({
-  head: () => ({
-    meta: [
-      { title: "Messages — AI Marriage" },
-      { name: "description", content: "Conversations with your mutual matches." },
-      { property: "og:title", content: "Messages — AI Marriage" },
-      { property: "og:description", content: "Conversations with your mutual matches." },
-    ],
-  }),
-  component: MessagesPage,
+  component: MessagesIndexRedirect,
 });
 
-function MessagesPage() {
-  const navigate = useNavigate();
-  const { data, isLoading, error } = useQuery(conversationsQuery());
-
-  return (
-    <div className="stack-6" style={{ maxWidth: "800px", margin: "0 auto", width: "100%" }}>
-      <PageHeader
-        title="Messages"
-        subtitle="Conversations with your mutual candidate matches."
-      />
-      {isLoading && <LoadingState count={3} />}
-      {error && <ErrorState error={error} />}
-      {data?.length === 0 && (
-        <StateMessage title="No conversations yet">
-          Conversations will appear here automatically as soon as you have a mutual match with a candidate.
-        </StateMessage>
-      )}
-
-      <div className="stack-3">
-        {data?.map((c) => {
-          const lastMsgObj = typeof c.lastMessage === "string" ? null : c.lastMessage;
-          const lastText = typeof c.lastMessage === "string" ? c.lastMessage : c.lastMessage?.text || "Started a new conversation";
-          const lastTime = lastMsgObj?.createdAt
-            ? new Date(lastMsgObj.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-            : "";
-
-          const profileName = c.profile?.name?.trim() || "Mutual Match";
-          const profileMeta = [
-            c.profile?.age ? `${c.profile.age} yrs` : null,
-            c.profile?.city,
-            c.profile?.occupation,
-          ]
-            .filter(Boolean)
-            .join(" · ");
-
-          return (
-            <Card
-              key={c.id}
-              interactive
-              role="link"
-              tabIndex={0}
-              onClick={() => navigate({ to: "/messages/$profileId", params: { profileId: c.profileId } })}
-              onKeyDown={(e) =>
-                e.key === "Enter" && navigate({ to: "/messages/$profileId", params: { profileId: c.profileId } })
-              }
-              style={{
-                padding: "1rem 1.25rem",
-                borderRadius: "14px",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
-              }}
-            >
-              <div className="row-3 between align-center" style={{ gap: "1rem" }}>
-                <div className="row-3 align-center" style={{ gap: "1rem", flex: 1, minWidth: 0 }}>
-                  <div className="whatsapp-avatar-wrapper">
-                    {c.profile && <Avatar profile={c.profile} large />}
-                    <span className="whatsapp-online-badge" />
-                  </div>
-                  <div className="stack-1" style={{ flex: 1, minWidth: 0 }}>
-                    <div className="row-2 between align-center">
-                      <h3
-                        style={{
-                          margin: 0,
-                          fontSize: "1.05rem",
-                          fontWeight: 700,
-                          color: "var(--foreground, #111827)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {profileName}
-                      </h3>
-                      {lastTime && (
-                        <span style={{ fontSize: "0.75rem", color: "var(--foreground-muted, #888)", fontWeight: 500 }}>
-                          {lastTime}
-                        </span>
-                      )}
-                    </div>
-
-                    {profileMeta && (
-                      <span style={{ fontSize: "0.8rem", color: "var(--rose, #e11d48)", fontWeight: 500 }}>
-                        {profileMeta}
-                      </span>
-                    )}
-
-                    <p
-                      style={{
-                        margin: "0.2rem 0 0",
-                        fontSize: "0.875rem",
-                        color: "var(--foreground-muted, #666)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {lastText}
-                    </p>
-                  </div>
-                </div>
-
-                {!!c.unread && c.unread > 0 && (
-                  <Badge variant="rose" style={{ borderRadius: "999px", padding: "0.2rem 0.6rem" }}>
-                    {c.unread}
-                  </Badge>
-                )}
-              </div>
-            </Card>
-          );
-        })}
+const ChatThreadSkeleton = () => (
+  <div className="stack-4" style={{ width: "100%", height: "100%", padding: "2rem", display: "flex", flexDirection: "column", justifyContent: "flex-end", paddingBottom: "4rem" }}>
+    <div style={{ alignSelf: "flex-start", width: "fit-content", maxWidth: "70%", display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+      <div style={{ padding: "0.85rem 1.1rem", background: "var(--card)", borderRadius: "16px 16px 16px 4px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.6rem", minWidth: "180px" }}>
+        <div style={{ width: "100%", height: "12px", background: "var(--border)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.5 }} />
+        <div style={{ width: "70%", height: "12px", background: "var(--border)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.5 }} />
       </div>
     </div>
-  );
+    
+    <div style={{ alignSelf: "flex-end", width: "fit-content", maxWidth: "70%", display: "flex", gap: "0.5rem", alignItems: "flex-end", marginTop: "1rem" }}>
+      <div style={{ padding: "0.85rem 1.1rem", background: "var(--rose-active, #f43f5e)", borderRadius: "16px 16px 4px 16px", display: "flex", flexDirection: "column", gap: "0.6rem", minWidth: "220px", opacity: 0.4 }}>
+        <div style={{ width: "100%", height: "12px", background: "var(--background)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.8 }} />
+        <div style={{ width: "85%", height: "12px", background: "var(--background)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.8 }} />
+      </div>
+    </div>
+
+    <div style={{ alignSelf: "flex-start", width: "fit-content", maxWidth: "70%", display: "flex", gap: "0.5rem", alignItems: "flex-end", marginTop: "1rem" }}>
+      <div style={{ padding: "0.85rem 1.1rem", background: "var(--card)", borderRadius: "16px 16px 16px 4px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.6rem", minWidth: "120px" }}>
+        <div style={{ width: "100%", height: "12px", background: "var(--border)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.5 }} />
+      </div>
+    </div>
+  </div>
+);
+
+function MessagesIndexRedirect() {
+  const navigate = useNavigate();
+  const { data, isLoading } = useQuery(conversationsQuery());
+
+  useEffect(() => {
+    // Only auto-redirect on desktop (where both panes are visible)
+    if (data && data.length > 0 && window.innerWidth > 768) {
+      navigate({ 
+        to: "/messages/$profileId", 
+        params: { profileId: data[0].profileId }, 
+        replace: true 
+      });
+    }
+  }, [data, navigate]);
+
+  if (isLoading) {
+    return (
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", backgroundColor: "var(--background)" }}>
+        <ChatThreadSkeleton />
+      </div>
+    );
+  }
+
+  if (data?.length === 0) {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", height: "100%", backgroundColor: "var(--background)" }}>
+        <StateMessage title="No conversations yet">
+          Explore profiles and get mutual matches to start chatting.
+        </StateMessage>
+      </div>
+    );
+  }
+
+  return null;
 }

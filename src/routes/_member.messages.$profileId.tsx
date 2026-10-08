@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState, type KeyboardEvent, type ChangeEvent } from "react";
 import { Avatar, ErrorState, LoadingState } from "@/components/ui";
-import { aiApi, callsApi, chatApi, messagesQuery, profileQuery, qk } from "@/lib/api/modules";
+import { aiApi, callsApi, chatApi, messagesQuery, profileQuery, conversationsQuery, qk } from "@/lib/api/modules";
 import { getSocket } from "@/lib/socket";
 import { callAccepted, useAppDispatch } from "@/store";
 import {
@@ -46,18 +46,48 @@ interface AttachmentState {
   size: string;
 }
 
+const ChatThreadSkeleton = () => (
+  <div className="stack-4" style={{ width: "100%", padding: "1rem" }}>
+    <div style={{ alignSelf: "flex-start", width: "fit-content", maxWidth: "70%", display: "flex", gap: "0.5rem", alignItems: "flex-end" }}>
+      <div style={{ padding: "0.85rem 1.1rem", background: "var(--card)", borderRadius: "16px 16px 16px 4px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.6rem", minWidth: "180px" }}>
+        <div style={{ width: "100%", height: "12px", background: "var(--border)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.5 }} />
+        <div style={{ width: "70%", height: "12px", background: "var(--border)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.5 }} />
+      </div>
+    </div>
+    
+    <div style={{ alignSelf: "flex-end", width: "fit-content", maxWidth: "70%", display: "flex", gap: "0.5rem", alignItems: "flex-end", marginTop: "1rem" }}>
+      <div style={{ padding: "0.85rem 1.1rem", background: "var(--rose-active, #f43f5e)", borderRadius: "16px 16px 4px 16px", display: "flex", flexDirection: "column", gap: "0.6rem", minWidth: "220px", opacity: 0.4 }}>
+        <div style={{ width: "100%", height: "12px", background: "var(--background)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.8 }} />
+        <div style={{ width: "85%", height: "12px", background: "var(--background)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.8 }} />
+      </div>
+    </div>
+
+    <div style={{ alignSelf: "flex-start", width: "fit-content", maxWidth: "70%", display: "flex", gap: "0.5rem", alignItems: "flex-end", marginTop: "1rem" }}>
+      <div style={{ padding: "0.85rem 1.1rem", background: "var(--card)", borderRadius: "16px 16px 16px 4px", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: "0.6rem", minWidth: "120px" }}>
+        <div style={{ width: "100%", height: "12px", background: "var(--border)", borderRadius: "4px", animation: "pulse 1.5s infinite", opacity: 0.5 }} />
+      </div>
+    </div>
+  </div>
+);
+
 function WhatsAppChatPage() {
   const { profileId } = Route.useParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const dispatch = useAppDispatch();
   const profile = useQuery(profileQuery(profileId));
+  const convos = useQuery(conversationsQuery());
+  const conversation = convos.data?.find((c) => c.profileId === profileId);
+  const conversationId = conversation?.id || "";
+
   const { data: messages, isLoading, error } = useQuery({
-    ...messagesQuery(profileId),
+    ...messagesQuery(conversationId, profileId, conversation?.isBot ?? false),
     refetchInterval: 10_000,
   });
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const isBot = conversation?.isBot ?? false;
 
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -69,11 +99,17 @@ function WhatsAppChatPage() {
   });
 
   const textValue = watch("text");
+  const [callingKind, setCallingKind] = useState<"AUDIO" | "VIDEO" | null>(null);
 
   const startCall = async (kind: "AUDIO" | "VIDEO") => {
+    if (isBot) {
+      alert("This member is currently offline for direct calls. Continue chatting to plan a call!");
+      return;
+    }
+    
     try {
       const res = await callsApi.initiate(profileId, kind);
-      getSocket()?.emit("call:ring", { targetUserId: profileId, kind });
+      getSocket()?.emit("call:ring", { targetUserId: profileId, ...res.call });
       dispatch(
         callAccepted({
           call: res.call,
@@ -82,7 +118,11 @@ function WhatsAppChatPage() {
           token: res.call.token,
         })
       );
-    } catch {
+    } catch (err: any) {
+      if (err?.status === 409) {
+        alert(err.message || "One of you is already on a call.");
+        return;
+      }
       // Local fallback call session
       getSocket()?.emit("call:ring", { targetUserId: profileId, kind });
       dispatch(
@@ -96,23 +136,48 @@ function WhatsAppChatPage() {
           },
         })
       );
+    } finally {
+      setCallingKind(null);
     }
   };
 
   useEffect(() => {
     const s = getSocket();
-    s?.emit("join_conversation", { conversationId: profileId });
+    if (conversationId) s?.emit("join_room", { conversationId });
+
+    let typingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const clearTypingTimeout = () => {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        typingTimeout = null;
+      }
+    };
 
     const handleTypingStart = (p: { conversationId: string }) => {
-      if (p.conversationId === profileId) setIsBotTyping(true);
+      if (p.conversationId === conversationId) {
+        setIsBotTyping(true);
+        clearTypingTimeout();
+        // Safety Timeout: 12 seconds
+        // If a network hiccup drops the stop event, this clears the bubble automatically.
+        typingTimeout = setTimeout(() => {
+          setIsBotTyping(false);
+        }, 12000);
+      }
     };
+    
     const handleTypingStop = (p: { conversationId: string }) => {
-      if (p.conversationId === profileId) setIsBotTyping(false);
-    };
-    const handleMessageReceived = (m: { conversationId: string }) => {
-      if (m.conversationId === profileId) {
+      if (p.conversationId === conversationId) {
         setIsBotTyping(false);
-        qc.invalidateQueries({ queryKey: qk.messages(profileId) });
+        clearTypingTimeout();
+      }
+    };
+    
+    const handleMessageReceived = (m: { conversationId: string }) => {
+      if (m.conversationId === conversationId) {
+        setIsBotTyping(false);
+        clearTypingTimeout();
+        qc.invalidateQueries({ queryKey: qk.messages(conversationId) });
         qc.invalidateQueries({ queryKey: qk.conversations });
       }
     };
@@ -122,31 +187,57 @@ function WhatsAppChatPage() {
     s?.on("message_received", handleMessageReceived);
 
     return () => {
-      s?.emit("leave_conversation", { conversationId: profileId });
+      if (conversationId) s?.emit("leave_room", { conversationId });
       s?.off("bot_typing_started", handleTypingStart);
       s?.off("bot_typing_stopped", handleTypingStop);
       s?.off("message_received", handleMessageReceived);
     };
-  }, [profileId, qc]);
+  }, [conversationId, qc]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages?.length]);
+    
+    // Mark messages as read
+    if (messages && messages.length > 0 && conversationId) {
+      const unreadIds = messages.filter((m) => m.from === profileId).map((m) => m.id);
+      if (unreadIds.length > 0) {
+        chatApi.readMessage(conversationId, unreadIds.slice(-5), isBot).catch(() => {});
+      }
+    }
+  }, [messages?.length, conversationId, profileId]);
 
   const send = useMutation({
     mutationFn: async (payload: { text?: string; attachment?: AttachmentState | null }) => {
       const text = payload.text?.trim() || "";
-      if (payload.attachment && payload.attachment.file) {
-        return chatApi.uploadAndSendMedia(payload.attachment.file, profileId, text);
+      
+      // If human, send via Socket
+      if (!isBot && getSocket() && conversationId) {
+        getSocket()?.emit("send_message", {
+          conversationId,
+          content: text || payload.attachment?.name,
+          type: payload.attachment?.type === "image" ? "IMAGE" : payload.attachment ? "DOCUMENT" : "TEXT",
+        });
+        // We still resolve so the UI clears the input optimistically
+        return { success: true };
       }
-      return chatApi.send(profileId, { text, type: "TEXT" });
+
+      // If bot or no socket, use REST API
+      if (conversationId) {
+        if (payload.attachment && payload.attachment.file) {
+          return chatApi.uploadAndSendMedia(payload.attachment.file, conversationId, text, isBot);
+        }
+        return chatApi.send(conversationId, { text, type: "TEXT" }, isBot);
+      }
+      throw new Error("No conversation ID");
     },
     onSuccess: () => {
       reset({ text: "" });
       handleClearAttachment();
-      qc.invalidateQueries({ queryKey: qk.messages(profileId) });
+      if (conversationId) {
+        qc.invalidateQueries({ queryKey: qk.messages(conversationId) });
+      }
       qc.invalidateQueries({ queryKey: qk.conversations });
       setTimeout(() => {
         if (scrollRef.current) {
@@ -227,7 +318,7 @@ function WhatsAppChatPage() {
         <div className="row-2 align-center" style={{ gap: "0.5rem" }}>
           <button
             type="button"
-            className="whatsapp-header-btn"
+            className="whatsapp-header-btn mobile-back-btn"
             onClick={() => navigate({ to: "/messages" })}
             title="Back to conversations"
             aria-label="Back to conversations"
@@ -262,6 +353,8 @@ function WhatsAppChatPage() {
             onClick={() => startCall("AUDIO")}
             title="Start Audio Call"
             aria-label="Start Audio Call"
+            disabled={callingKind !== null}
+            style={{ opacity: callingKind === "AUDIO" ? 0.5 : 1 }}
           >
             <PhoneIcon size={20} />
           </button>
@@ -271,6 +364,8 @@ function WhatsAppChatPage() {
             onClick={() => startCall("VIDEO")}
             title="Start Video Call"
             aria-label="Start Video Call"
+            disabled={callingKind !== null}
+            style={{ opacity: callingKind === "VIDEO" ? 0.5 : 1 }}
           >
             <VideoIcon size={20} />
           </button>
@@ -279,7 +374,7 @@ function WhatsAppChatPage() {
 
       {/* WhatsApp Wallpaper Chat Thread */}
       <div className="whatsapp-chat-wall" ref={scrollRef}>
-        {isLoading && <LoadingState count={3} />}
+        {isLoading && <ChatThreadSkeleton />}
         {error && <ErrorState error={error} />}
 
         {!isLoading && messages?.length === 0 && (

@@ -1230,16 +1230,11 @@ body {
    ========================================================================== */
 .whatsapp-chat-container {
   width: 100%;
-  height: calc(100vh - 8rem);
-  max-height: 820px;
-  min-height: 520px;
+  height: 100%;
   background: var(--card, #ffffff);
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
-  border-radius: var(--radius-xl, 16px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
   position: relative;
 }
 
@@ -1380,9 +1375,10 @@ body {
 
 .whatsapp-bubble--incoming {
   align-self: flex-start;
-  background: #ffffff;
-  color: #111b21;
+  background: var(--card);
+  color: var(--ink);
   border-radius: 0px 12px 12px 12px;
+  border: 1px solid var(--border);
 }
 
 .whatsapp-bubble--incoming::before {
@@ -1394,13 +1390,13 @@ body {
   height: 0;
   border-style: solid;
   border-width: 0 8px 10px 0;
-  border-color: transparent #ffffff transparent transparent;
+  border-color: transparent var(--card) transparent transparent;
 }
 
 .whatsapp-bubble--outgoing {
   align-self: flex-end;
-  background: #d9fdd3;
-  color: #111b21;
+  background: var(--accent);
+  color: var(--ink);
   border-radius: 12px 0px 12px 12px;
 }
 
@@ -1413,7 +1409,7 @@ body {
   height: 0;
   border-style: solid;
   border-width: 0 0 10px 8px;
-  border-color: transparent transparent transparent #d9fdd3;
+  border-color: transparent transparent transparent var(--accent);
 }
 
 /* Call log inside chat */
@@ -1433,7 +1429,7 @@ body {
 .whatsapp-bubble-text {
   font-family: var(--font-sans, sans-serif);
   font-size: 0.9375rem;
-  color: #111b21;
+  color: var(--ink);
   white-space: pre-wrap;
 }
 
@@ -1449,7 +1445,7 @@ body {
 }
 
 .whatsapp-check-icon {
-  color: #53bdeb; /* WhatsApp blue ticks */
+  color: var(--rose-active); /* Themed ticks */
   display: inline-flex;
   align-items: center;
 }
@@ -1728,5 +1724,21 @@ body {
 
 
 
+/* --- Premium Skeleton Loader --- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
 
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(150, 150, 150, 0.08) 25%,
+    rgba(150, 150, 150, 0.18) 50%,
+    rgba(150, 150, 150, 0.08) 75%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 2s infinite ease-in-out;
+  border-radius: 8px;
+}
 

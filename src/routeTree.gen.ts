@@ -20,6 +20,7 @@ import { Route as MemberConnectionsRouteImport } from './routes/_member.connecti
 import { Route as MemberDiscoverRouteImport } from './routes/_member.discover'
 import { Route as MemberEventsRouteImport } from './routes/_member.events'
 import { Route as MemberMeRouteImport } from './routes/_member.me'
+import { Route as MemberMessagesRouteImport } from './routes/_member.messages'
 import { Route as MemberNotificationsRouteImport } from './routes/_member.notifications'
 import { Route as MemberSettingsRouteImport } from './routes/_member.settings'
 import { Route as MemberStoryRouteImport } from './routes/_member.story'
@@ -81,6 +82,11 @@ const MemberMeRoute = MemberMeRouteImport.update({
   path: '/me',
   getParentRoute: () => MemberRoute,
 } as any)
+const MemberMessagesRoute = MemberMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => MemberRoute,
+} as any)
 const MemberNotificationsRoute = MemberNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -97,14 +103,14 @@ const MemberStoryRoute = MemberStoryRouteImport.update({
   getParentRoute: () => MemberRoute,
 } as any)
 const MemberMessagesIndexRoute = MemberMessagesIndexRouteImport.update({
-  id: '/messages/',
-  path: '/messages/',
-  getParentRoute: () => MemberRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => MemberMessagesRoute,
 } as any)
 const MemberMessagesProfileIdRoute = MemberMessagesProfileIdRouteImport.update({
-  id: '/messages/$profileId',
-  path: '/messages/$profileId',
-  getParentRoute: () => MemberRoute,
+  id: '/$profileId',
+  path: '/$profileId',
+  getParentRoute: () => MemberMessagesRoute,
 } as any)
 const MemberProfileIdRoute = MemberProfileIdRouteImport.update({
   id: '/profile/$id',
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof MemberDiscoverRoute
   '/events': typeof MemberEventsRoute
   '/me': typeof MemberMeRoute
+  '/messages': typeof MemberMessagesRouteWithChildren
   '/notifications': typeof MemberNotificationsRoute
   '/settings': typeof MemberSettingsRoute
   '/story': typeof MemberStoryRoute
@@ -161,6 +168,7 @@ export interface FileRoutesById {
   '/_member/discover': typeof MemberDiscoverRoute
   '/_member/events': typeof MemberEventsRoute
   '/_member/me': typeof MemberMeRoute
+  '/_member/messages': typeof MemberMessagesRouteWithChildren
   '/_member/notifications': typeof MemberNotificationsRoute
   '/_member/settings': typeof MemberSettingsRoute
   '/_member/story': typeof MemberStoryRoute
@@ -181,6 +189,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/events'
     | '/me'
+    | '/messages'
     | '/notifications'
     | '/settings'
     | '/story'
@@ -218,6 +227,7 @@ export interface FileRouteTypes {
     | '/_member/discover'
     | '/_member/events'
     | '/_member/me'
+    | '/_member/messages'
     | '/_member/notifications'
     | '/_member/settings'
     | '/_member/story'
@@ -313,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemberMeRouteImport
       parentRoute: typeof MemberRoute
     }
+    '/_member/messages': {
+      id: '/_member/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MemberMessagesRouteImport
+      parentRoute: typeof MemberRoute
+    }
     '/_member/notifications': {
       id: '/_member/notifications'
       path: '/notifications'
@@ -336,17 +353,17 @@ declare module '@tanstack/react-router' {
     }
     '/_member/messages/': {
       id: '/_member/messages/'
-      path: '/messages'
+      path: '/'
       fullPath: '/messages/'
       preLoaderRoute: typeof MemberMessagesIndexRouteImport
-      parentRoute: typeof MemberRoute
+      parentRoute: typeof MemberMessagesRoute
     }
     '/_member/messages/$profileId': {
       id: '/_member/messages/$profileId'
-      path: '/messages/$profileId'
+      path: '/$profileId'
       fullPath: '/messages/$profileId'
       preLoaderRoute: typeof MemberMessagesProfileIdRouteImport
-      parentRoute: typeof MemberRoute
+      parentRoute: typeof MemberMessagesRoute
     }
     '/_member/profile/$id': {
       id: '/_member/profile/$id'
@@ -358,6 +375,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface MemberMessagesRouteChildren {
+  MemberMessagesProfileIdRoute: typeof MemberMessagesProfileIdRoute
+  MemberMessagesIndexRoute: typeof MemberMessagesIndexRoute
+}
+
+const MemberMessagesRouteChildren: MemberMessagesRouteChildren = {
+  MemberMessagesProfileIdRoute: MemberMessagesProfileIdRoute,
+  MemberMessagesIndexRoute: MemberMessagesIndexRoute,
+}
+
+const MemberMessagesRouteWithChildren = MemberMessagesRoute._addFileChildren(
+  MemberMessagesRouteChildren,
+)
+
 interface MemberRouteChildren {
   MemberAccountCentreRoute: typeof MemberAccountCentreRoute
   MemberBillingRoute: typeof MemberBillingRoute
@@ -365,12 +396,11 @@ interface MemberRouteChildren {
   MemberDiscoverRoute: typeof MemberDiscoverRoute
   MemberEventsRoute: typeof MemberEventsRoute
   MemberMeRoute: typeof MemberMeRoute
+  MemberMessagesRoute: typeof MemberMessagesRouteWithChildren
   MemberNotificationsRoute: typeof MemberNotificationsRoute
   MemberSettingsRoute: typeof MemberSettingsRoute
   MemberStoryRoute: typeof MemberStoryRoute
-  MemberMessagesProfileIdRoute: typeof MemberMessagesProfileIdRoute
   MemberProfileIdRoute: typeof MemberProfileIdRoute
-  MemberMessagesIndexRoute: typeof MemberMessagesIndexRoute
 }
 
 const MemberRouteChildren: MemberRouteChildren = {
@@ -380,12 +410,11 @@ const MemberRouteChildren: MemberRouteChildren = {
   MemberDiscoverRoute: MemberDiscoverRoute,
   MemberEventsRoute: MemberEventsRoute,
   MemberMeRoute: MemberMeRoute,
+  MemberMessagesRoute: MemberMessagesRouteWithChildren,
   MemberNotificationsRoute: MemberNotificationsRoute,
   MemberSettingsRoute: MemberSettingsRoute,
   MemberStoryRoute: MemberStoryRoute,
-  MemberMessagesProfileIdRoute: MemberMessagesProfileIdRoute,
   MemberProfileIdRoute: MemberProfileIdRoute,
-  MemberMessagesIndexRoute: MemberMessagesIndexRoute,
 }
 
 const MemberRouteWithChildren =

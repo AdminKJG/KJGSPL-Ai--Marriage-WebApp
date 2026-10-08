@@ -35,7 +35,15 @@ export interface Profile {
 export interface Me extends Profile {
   email?: string;
   dateOfBirth?: string;
-  preferences?: { minAge?: number; maxAge?: number; gender?: string; city?: string };
+  preferences?: {
+    minAge?: number;
+    maxAge?: number;
+    gender?: string;
+    city?: string;
+    cities?: string[];
+    settlementCities?: string[];
+    topicPreferences?: Record<string, { ideal: string[]; accepted: string[]; stretch: string[] }>;
+  };
   blocked?: Profile[];
   blockedUsers?: Profile[];
 }
@@ -111,6 +119,7 @@ export interface Conversation {
   profile: Profile;
   lastMessage?: { text: string; createdAt: string } | string | null;
   unread?: number;
+  isBot?: boolean;
 }
 
 export interface Message {

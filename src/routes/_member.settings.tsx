@@ -37,6 +37,12 @@ function SettingsPage() {
     mutationFn: accountApi.preferences,
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.account }),
   });
+  
+  const meSettings: Record<string, any> = (me.data?.settings as Record<string, any>) ?? {};
+  const saveMeSettings = useMutation({
+    mutationFn: (settings: any) => profileApi.updateMe({ settings: { ...meSettings, ...settings } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: qk.me }),
+  });
   const unblock = useMutation({
     mutationFn: profileApi.unblock,
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.me }),
@@ -70,6 +76,19 @@ function SettingsPage() {
         title="Settings & Privacy"
         subtitle="Manage your privacy governance, notification preferences, and account controls."
       />
+
+      {(account.isLoading || me.isLoading) && (
+        <Card variant="surface" style={{ borderLeft: "4px solid var(--rose-active)" }}>
+          <div className="stack-3">
+            <div className="skeleton-shimmer" style={{ width: "200px", height: "1.75rem", borderRadius: "6px" }} />
+            <div className="stack-2">
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "4rem", borderRadius: "8px" }} />
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "4rem", borderRadius: "8px" }} />
+              <div className="skeleton-shimmer" style={{ width: "100%", height: "4rem", borderRadius: "8px" }} />
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Instagram/Meta-Style Accounts Centre Card */}
       <Card variant="surface" style={{ borderLeft: "4px solid var(--rose-active)" }}>
@@ -154,6 +173,44 @@ function SettingsPage() {
             </div>
           ))}
           {savePref.error && <p className="ds-field__hint ds-field__hint--error" role="alert">{savePref.error.message}</p>}
+        </div>
+      </Card>
+
+      <Card variant="surface">
+        <div className="stack-4">
+          <Heading level="h3">Privacy & Experience</Heading>
+          
+          <div className="row-2">
+            <input
+              id="profileVisibility"
+              type="checkbox"
+              checked={meSettings.profileVisibility !== "hidden"}
+              onChange={(e) => saveMeSettings.mutate({ profileVisibility: e.target.checked ? "visible" : "hidden" })}
+            />
+            <Label htmlFor="profileVisibility">Profile Visible to Others</Label>
+          </div>
+
+          <div className="row-2">
+            <input
+              id="practiceInteractions"
+              type="checkbox"
+              checked={!!meSettings.practiceInteractions}
+              onChange={(e) => saveMeSettings.mutate({ practiceInteractions: e.target.checked })}
+            />
+            <Label htmlFor="practiceInteractions">Enable Practice Interactions</Label>
+          </div>
+
+          <div className="row-2">
+            <input
+              id="sound"
+              type="checkbox"
+              checked={!!meSettings.sound}
+              onChange={(e) => saveMeSettings.mutate({ sound: e.target.checked })}
+            />
+            <Label htmlFor="sound">Enable App Sounds</Label>
+          </div>
+          
+          {saveMeSettings.error && <p className="ds-field__hint ds-field__hint--error" role="alert">{saveMeSettings.error.message}</p>}
         </div>
       </Card>
 

@@ -27,22 +27,49 @@ export const Route = createFileRoute("/_member/connections")({
   component: ConnectionsPage,
 });
 
-type CategoryKey = "all" | "mutual" | "received" | "sent" | "saved";
+type CategoryKey = "mutual" | "received" | "sent" | "saved";
 
-const TAB_CONFIG: { key: CategoryKey; title: string; icon: string }[] = [
-  { key: "all", title: "All Connections", icon: "🌐" },
-  { key: "mutual", title: "Mutual Matches", icon: "💕" },
-  { key: "received", title: "Interests Received", icon: "📥" },
-  { key: "sent", title: "Interests Sent", icon: "📤" },
-  { key: "saved", title: "Saved Shortlists", icon: "⭐" },
+const TAB_CONFIG: { key: CategoryKey; title: string; icon: string; description: string }[] = [
+  { key: "mutual", title: "Mutual Matches", icon: "💕", description: "Reciprocal matches — messaging is unlocked!" },
+  { key: "received", title: "Interests Received", icon: "📥", description: "Members who expressed interest in you." },
+  { key: "sent", title: "Interests Sent", icon: "📤", description: "Requests you have sent awaiting response." },
+  { key: "saved", title: "Saved Shortlists", icon: "⭐", description: "Profiles bookmarked for later review." },
 ];
+
+const ConnectionsSkeleton = () => (
+  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))", gap: "1.2rem" }}>
+    {Array.from({ length: 6 }).map((_, i) => (
+      <Card key={i} style={{ borderRadius: "16px", padding: "1.2rem", position: "relative" }}>
+         <div className="stack-3" style={{ opacity: 0.65 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+               <div style={{ width: "80px", height: "1.25rem", background: "var(--border, #e5e7eb)", borderRadius: "9999px", animation: "pulse 1.5s infinite" }} />
+               <div style={{ width: "1.5rem", height: "1.5rem", background: "var(--border, #e5e7eb)", borderRadius: "50%", animation: "pulse 1.5s infinite" }} />
+            </div>
+            <div style={{ display: "flex", gap: "0.9rem", alignItems: "flex-start" }}>
+               <div style={{ width: "64px", height: "64px", borderRadius: "14px", background: "var(--border, #e5e7eb)", animation: "pulse 1.5s infinite" }} />
+               <div className="stack-2" style={{ flex: 1, paddingTop: "0.25rem" }}>
+                  <div style={{ width: "70%", height: "1rem", background: "var(--border, #e5e7eb)", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+                  <div style={{ width: "90%", height: "0.75rem", background: "var(--border, #e5e7eb)", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+                  <div style={{ width: "50%", height: "0.75rem", background: "var(--border, #e5e7eb)", borderRadius: "4px", animation: "pulse 1.5s infinite" }} />
+               </div>
+            </div>
+            <div style={{ width: "100%", height: "2rem", background: "var(--border, #e5e7eb)", borderRadius: "4px", animation: "pulse 1.5s infinite", marginTop: "0.5rem" }} />
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+               <div style={{ flex: 1, height: "2.25rem", background: "var(--border, #e5e7eb)", borderRadius: "9999px", animation: "pulse 1.5s infinite" }} />
+               <div style={{ flex: 1, height: "2.25rem", background: "var(--border, #e5e7eb)", borderRadius: "9999px", animation: "pulse 1.5s infinite" }} />
+            </div>
+         </div>
+      </Card>
+    ))}
+  </div>
+);
 
 function ConnectionsPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
   // State
-  const [activeTab, setActiveTab] = useState<CategoryKey>("all");
+  const [activeTab, setActiveTab] = useState<CategoryKey>("mutual");
   const [page, setPage] = useState<number>(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [minAlignment, setMinAlignment] = useState<number>(0);
@@ -168,9 +195,8 @@ function ConnectionsPage() {
     }
   };
 
-  // Helper to resolve profile items for current view
-  const getProfilesForCategory = (cat: "mutual" | "received" | "sent" | "saved"): Profile[] => {
-    if (activeTab !== "all" && categoryData?.category === cat) {
+  const getProfilesForCategory = (cat: CategoryKey): Profile[] => {
+    if (categoryData?.category === cat) {
       return categoryData.items ?? [];
     }
     return (allData?.[cat] as Profile[] | undefined) ?? [];
@@ -191,27 +217,19 @@ function ConnectionsPage() {
     });
   };
 
-  const sectionsToRender: { key: "mutual" | "received" | "sent" | "saved"; title: string; icon: string; description: string }[] =
-    activeTab === "all"
-      ? [
-          { key: "mutual", title: "Mutual Matches", icon: "💕", description: "Reciprocal matches — messaging is unlocked!" },
-          { key: "received", title: "Interests Received", icon: "📥", description: "Members who expressed interest in you." },
-          { key: "sent", title: "Interests Sent", icon: "📤", description: "Requests you have sent awaiting response." },
-          { key: "saved", title: "Saved Shortlists", icon: "⭐", description: "Profiles bookmarked for later review." },
-        ]
-      : [
-          {
-            key: activeTab as "mutual" | "received" | "sent" | "saved",
-            title: TAB_CONFIG.find((t) => t.key === activeTab)?.title || "Connections",
-            icon: TAB_CONFIG.find((t) => t.key === activeTab)?.icon || "🔗",
-            description: TAB_CONFIG.find((t) => t.key === activeTab)?.title || "",
-          },
-        ];
+  const sectionsToRender = [
+    {
+      key: activeTab,
+      title: TAB_CONFIG.find((t) => t.key === activeTab)?.title || "Connections",
+      icon: TAB_CONFIG.find((t) => t.key === activeTab)?.icon || "🔗",
+      description: TAB_CONFIG.find((t) => t.key === activeTab)?.description || "",
+    },
+  ];
 
-  const isLoading = isAllLoading || (activeTab !== "all" && isCategoryLoading);
+  const isLoading = isAllLoading || isCategoryLoading;
 
   return (
-    <div className="connections-page-container stack-6" style={{ maxWidth: "1140px", margin: "0 auto", padding: "1rem" }}>
+    <div className="connections-page-container stack-6" style={{ width: "100%" }}>
       {/* Header */}
       <PageHeader
         title="Connections Centre"
@@ -350,62 +368,6 @@ function ConnectionsPage() {
         </div>
       </div>
 
-      {/* Tab Controls Bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.5rem",
-          overflowX: "auto",
-          paddingBottom: "0.5rem",
-          borderBottom: "1px solid #e2e8f0",
-        }}
-      >
-        {TAB_CONFIG.map((tab) => {
-          const isActive = activeTab === tab.key;
-          const count = getTabBadgeCount(tab.key);
-
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => {
-                setActiveTab(tab.key);
-                setPage(1);
-              }}
-              style={{
-                padding: "0.6rem 1.1rem",
-                borderRadius: "9999px",
-                border: isActive ? "1.5px solid #ea580c" : "1px solid #cbd5e1",
-                background: isActive ? "#fff7ed" : "#ffffff",
-                color: isActive ? "#ea580c" : "#475569",
-                fontSize: "0.85rem",
-                fontWeight: isActive ? 700 : 500,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.4rem",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.title}</span>
-              <span
-                style={{
-                  padding: "0.15rem 0.45rem",
-                  borderRadius: "9999px",
-                  background: isActive ? "#ea580c" : "#f1f5f9",
-                  color: isActive ? "#ffffff" : "#64748b",
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                }}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       {/* Filter and Search Bar */}
       <div
@@ -453,7 +415,7 @@ function ConnectionsPage() {
       </div>
 
       {/* Loading state */}
-      {isLoading && <LoadingState />}
+      {isLoading && <ConnectionsSkeleton />}
 
       {/* Error state */}
       {allError && <ErrorState error={allError} />}
@@ -466,19 +428,16 @@ function ConnectionsPage() {
             const profiles = filterProfiles(rawProfiles);
 
             if (profiles.length === 0) {
-              if (activeTab !== "all" || rawProfiles.length === 0) {
-                return (
-                  <StateMessage
-                    key={sec.key}
-                    title={`No ${sec.title} found`}
-                  >
-                    {searchQuery
-                      ? "No candidates matched your search criteria."
-                      : `You currently have no profiles in ${sec.title.toLowerCase()}. Head to Discover to explore curated profiles!`}
-                  </StateMessage>
-                );
-              }
-              return null;
+              return (
+                <StateMessage
+                  key={sec.key}
+                  title={`No ${sec.title} found`}
+                >
+                  {searchQuery
+                    ? "No candidates matched your search criteria."
+                    : `You currently have no profiles in ${sec.title.toLowerCase()}. Head to Discover to explore curated profiles!`}
+                </StateMessage>
+              );
             }
 
             return (
@@ -496,18 +455,7 @@ function ConnectionsPage() {
                     </Text>
                   </div>
 
-                  {activeTab === "all" && rawProfiles.length > 4 && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setActiveTab(sec.key);
-                        setPage(1);
-                      }}
-                    >
-                      View All ({rawProfiles.length}) →
-                    </Button>
-                  )}
+
                 </div>
 
                 {/* Candidate Cards Grid */}
@@ -671,8 +619,9 @@ function ConnectionsPage() {
                               <>
                                 <Button
                                   size="sm"
+                                  variant="rose"
                                   onClick={() => navigate({ to: "/messages/$profileId", params: { profileId: p.id } })}
-                                  style={{ flex: 1, background: "#ea580c", color: "#ffffff" }}
+                                  style={{ flex: 1 }}
                                 >
                                   💬 Message
                                 </Button>
@@ -693,8 +642,9 @@ function ConnectionsPage() {
                               <>
                                 <Button
                                   size="sm"
+                                  variant="rose"
                                   onClick={() => setInterestTarget({ profile: p, isAccepting: true })}
-                                  style={{ flex: 1, background: "#16a34a", color: "#ffffff" }}
+                                  style={{ flex: 1 }}
                                 >
                                   ❤️ Accept
                                 </Button>
@@ -732,8 +682,9 @@ function ConnectionsPage() {
                               <>
                                 <Button
                                   size="sm"
+                                  variant="rose"
                                   onClick={() => setInterestTarget({ profile: p, isAccepting: false })}
-                                  style={{ flex: 1, background: "#ea580c", color: "#ffffff" }}
+                                  style={{ flex: 1 }}
                                 >
                                   💌 Connect
                                 </Button>
@@ -758,7 +709,7 @@ function ConnectionsPage() {
           })}
 
           {/* Paginated Category Navigation Controls */}
-          {activeTab !== "all" && categoryData && categoryData.hasMore && (
+          {categoryData && categoryData.hasMore && (
             <div style={{ display: "flex", justifyContent: "center", gap: "1rem", marginTop: "1rem" }}>
               <Button
                 disabled={page <= 1}
@@ -885,7 +836,7 @@ function ConnectionsPage() {
                 Cancel
               </Button>
               <Button
-                style={{ background: "#ea580c", color: "#ffffff" }}
+                variant="rose"
                 onClick={() =>
                   interestMutation.mutate({
                     targetUserId: interestTarget.profile.id,

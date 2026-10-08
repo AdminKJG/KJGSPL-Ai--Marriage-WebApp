@@ -27,14 +27,22 @@ function ProfilePage() {
   const { data: p, isLoading, error } = useQuery(profileQuery(id));
   const compat = useQuery(compatibilityQuery(id));
 
+  const [isCalling, setIsCalling] = useState(false);
   const startCall = async () => {
+    setIsCalling(true);
     try {
       const res = await callsApi.initiate(id, "AUDIO");
-      getSocket()?.emit("call:ring", { targetUserId: id, kind: "AUDIO" });
+      getSocket()?.emit("call:ring", { targetUserId: id, ...res.call });
       dispatch(callAccepted({ call: res.call, url: res.call.url, roomName: res.call.roomName, token: res.call.token }));
-    } catch {
+    } catch (err: any) {
+      if (err?.status === 409) {
+        alert(err.message || "One of you is already on a call.");
+        return;
+      }
       getSocket()?.emit("call:ring", { targetUserId: id, kind: "AUDIO" });
       dispatch(callAccepted({ call: { callId: `call_${Date.now()}`, callerId: "me", calleeId: id, kind: "AUDIO", status: "ACCEPTED" } }));
+    } finally {
+      setIsCalling(false);
     }
   };
   const [status, setStatus] = useState<string | null>(null);
@@ -88,7 +96,7 @@ function ProfilePage() {
             <Button variant="outline" onClick={() => navigate({ to: "/messages/$profileId", params: { profileId: id } })}>
               Message
             </Button>
-            <Button variant="outline" onClick={startCall}>
+            <Button variant="outline" onClick={startCall} loading={isCalling} disabled={isCalling}>
               📞 Call
             </Button>
           </div>

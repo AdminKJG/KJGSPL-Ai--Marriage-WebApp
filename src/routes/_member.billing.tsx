@@ -141,7 +141,24 @@ function BillingPage() {
         </Card>
       )}
 
-      {isLoading && <LoadingState />}
+      {isLoading && (
+        <div className="grid-cards" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "2rem" }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i} style={{ padding: "2rem" }}>
+              <div className="stack-3">
+                <div className="skeleton-shimmer" style={{ width: "80px", height: "1.5rem", borderRadius: "4px" }} />
+                <div className="skeleton-shimmer" style={{ width: "120px", height: "2.5rem", borderRadius: "8px" }} />
+                <div className="skeleton-shimmer" style={{ width: "100%", height: "1rem", borderRadius: "4px" }} />
+                <div className="stack-2" style={{ marginTop: "1rem" }}>
+                  <div className="skeleton-shimmer" style={{ width: "100%", height: "1rem", borderRadius: "4px" }} />
+                  <div className="skeleton-shimmer" style={{ width: "90%", height: "1rem", borderRadius: "4px" }} />
+                </div>
+                <div className="skeleton-shimmer" style={{ width: "100%", height: "2.5rem", borderRadius: "8px", marginTop: "1rem" }} />
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
       {error && <ErrorState error={error} />}
 
       {data?.subscription && (
