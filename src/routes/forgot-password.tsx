@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, Text } from "@/components/ui";
+import { useToast } from "@/components/ui/Toast";
 import { Field } from "@/components/ui";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { authApi } from "@/lib/api/modules";
@@ -40,6 +41,7 @@ function ForgotPasswordPage() {
   const navigate = useNavigate();
   const { token } = Route.useSearch();
   const isReset = Boolean(token);
+  const { showError, showSuccess } = useToast();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -47,10 +49,39 @@ function ForgotPasswordPage() {
   const requestForm = useForm<RequestValues>({ resolver: zodResolver(requestSchema) });
   const resetForm = useForm<ResetValues>({ resolver: zodResolver(resetSchema) });
 
-  const request = useMutation({ mutationFn: (v: RequestValues) => authApi.forgotPassword(v.email) });
+  const request = useMutation({
+    mutationFn: (v: RequestValues) => authApi.forgotPassword(v.email),
+    onSuccess: () => {
+      showSuccess("Password reset instructions have been sent to your email.", "Reset Email Sent");
+    },
+    onError: (err: Error) => {
+      showError(err.message || "Failed to send reset link. Please check your email.", "Error");
+    },
+  });
+
   const reset = useMutation({
     mutationFn: (v: ResetValues) => authApi.resetPassword({ token: token!, password: v.password }),
+    onSuccess: () => {
+      showSuccess("Your password has been successfully updated!", "Password Updated");
+    },
+    onError: (err: Error) => {
+      showError(err.message || "Failed to reset password. The link may have expired.", "Reset Failed");
+    },
   });
+
+  const onRequestInvalid = (errors: Record<string, any>) => {
+    if (errors.email?.message) {
+      showError(errors.email.message, "Invalid Email");
+    }
+  };
+
+  const onResetInvalid = (errors: Record<string, any>) => {
+    const firstKey = Object.keys(errors)[0];
+    if (firstKey && errors[firstKey]?.message) {
+      showError(errors[firstKey].message, "Password Error");
+    }
+  };
+
 
   return (
     <AuthLayout
@@ -64,7 +95,7 @@ function ForgotPasswordPage() {
       }
     >
       {isReset ? (
-        <form className="stack-4" onSubmit={resetForm.handleSubmit((v) => reset.mutate(v))} noValidate>
+        <form className="stack-4" onSubmit={resetForm.handleSubmit((v) => reset.mutate(v), onResetInvalid)} noValidate>
           {reset.isSuccess ? (
             <div className="stack-4" role="status">
               <Text>{reset.data?.message ?? "Password updated. Sign in with your new password."}</Text>
@@ -121,7 +152,7 @@ function ForgotPasswordPage() {
           )}
         </form>
       ) : (
-        <form className="stack-4" onSubmit={requestForm.handleSubmit((v) => request.mutate(v))} noValidate>
+        <form className="stack-4" onSubmit={requestForm.handleSubmit((v) => request.mutate(v), onRequestInvalid)} noValidate>
           {request.isSuccess ? (
             <div className="stack-4" role="status">
               <Text>

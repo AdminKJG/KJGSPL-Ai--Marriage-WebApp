@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button, Text } from "@/components/ui";
+import { useToast } from "@/components/ui/Toast";
 import { Field } from "@/components/ui";
 import { AuthLayout } from "@/components/auth/AuthLayout";
 import { authApi } from "@/lib/api/modules";
@@ -45,6 +46,7 @@ function LoginPage() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
   const dispatch = useAppDispatch();
+  const { showError, showSuccess } = useToast();
   const [needsMfa, setNeedsMfa] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   // Inline view swap (Shakuro-style): slide between sign-in and forgot
@@ -62,31 +64,63 @@ function LoginPage() {
     onSuccess: (res) => {
       tokenStore.set(res.accessToken, res.refreshToken);
       dispatch(signedIn(res.user));
-      navigate({ to: redirect && redirect.startsWith("/") ? redirect : "/discover", replace: true });
+      showSuccess(`Welcome back, ${res.user.name || "Member"}!`, "Sign In Successful");
+      const target =
+        redirect && redirect.startsWith("/")
+          ? redirect
+          : (res.user as any).onboardingComplete === false
+          ? "/onboarding"
+          : "/discover";
+      navigate({ to: target, replace: true });
     },
-    onError: (err) => {
+    onError: (err: Error) => {
       if (/mfa|totp|code/i.test(err.message)) setNeedsMfa(true);
+      showError(err.message || "Invalid credentials or sign-in error", "Sign In Failed");
     },
   });
 
-  const forgot = useMutation({ mutationFn: (v: ForgotValues) => authApi.forgotPassword(v.email) });
+  const forgot = useMutation({
+    mutationFn: (v: ForgotValues) => authApi.forgotPassword(v.email),
+    onSuccess: () => {
+      showSuccess("If an account exists for that email, a password reset link has been sent.", "Reset Email Sent");
+    },
+    onError: (err: Error) => {
+      showError(err.message || "Unable to process password reset. Please try again.", "Reset Failed");
+    },
+  });
+
+  const onInvalidLogin = (errors: Record<string, any>) => {
+    const firstKey = Object.keys(errors)[0];
+    if (firstKey && errors[firstKey]?.message) {
+      showError(errors[firstKey].message, "Invalid Input");
+    } else {
+      showError("Please check your email and password.", "Login Error");
+    }
+  };
+
+  const onInvalidForgot = (errors: Record<string, any>) => {
+    if (errors.email?.message) {
+      showError(errors.email.message, "Invalid Email");
+    }
+  };
+
 
   return (
     <AuthLayout
       variant="login"
-      eyebrow={mode === "forgot" ? "Reset access" : "Welcome back"}
-      title={mode === "forgot" ? "Reset your password." : "Sign in to continue your story."}
+      eyebrow={mode === "forgot" ? "Reset access" : undefined}
+      title={mode === "forgot" ? "Reset your password." : "Welcome back to your journey."}
       subtitle={
         mode === "forgot"
-          ? "Enter your email and we'll slide a secure reset link your way."
-          : "Your matches, messages and story picks are waiting where you left them."
+          ? "Enter your email and we'll send a secure reset link your way."
+          : "Your AI matches, active conversations, and shortlisted profiles are waiting for you."
       }
     >
       <div className="auth-viewport">
         <div className={`auth-track${mode === "forgot" ? " auth-track--forgot" : ""}`}>
           {/* View 1 — sign in */}
           <div className="auth-view" aria-hidden={mode !== "signin"}>
-            <form className="stack-4" onSubmit={handleSubmit((v) => login.mutate(v))} noValidate>
+            <form className="stack-4" onSubmit={handleSubmit((v) => login.mutate(v), onInvalidLogin)} noValidate>
               <Field
                 id="email"
                 label="Email Address"
@@ -157,6 +191,8 @@ function LoginPage() {
                 size="lg"
                 style={{
                   width: "100%",
+                  height: "48px",
+                  borderRadius: "9999px",
                   background: "linear-gradient(135deg, #ea580c 0%, #be123c 100%)",
                   border: "none",
                   boxShadow: "0 4px 14px rgba(234, 88, 12, 0.35)",
@@ -215,7 +251,7 @@ function LoginPage() {
                 </Text>
               </div>
             ) : (
-              <form className="stack-4" onSubmit={forgotForm.handleSubmit((v) => forgot.mutate(v))} noValidate>
+              <form className="stack-4" onSubmit={forgotForm.handleSubmit((v) => forgot.mutate(v), onInvalidForgot)} noValidate>
                 <button type="button" className="auth-back" onClick={() => setMode("signin")}>
                   ← Back to sign in
                 </button>

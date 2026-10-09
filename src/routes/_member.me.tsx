@@ -5,10 +5,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Heading, Label, Text, Textarea } from "@/components/ui";
+import { SearchableDropdown } from "@/components/ui/SearchableDropdown";
 import { ErrorState, Field, LoadingState, PageHeader } from "@/components/ui";
 import { CrownIcon, GearIcon, ShieldCheckIcon, SparklesIcon } from "@/components/icons/NavIcons";
 import { aiApi, galleryQuery, mediaApi, meQuery, profileApi, qk } from "@/lib/api/modules";
 import { photoUrl } from "@/lib/api/client";
+import { MASTER_EDUCATION, MASTER_OCCUPATION } from "@/lib/constants/masterData";
+
+const EDUCATION_OPTIONS = MASTER_EDUCATION.map((e) => ({
+  title: `${e.name} (${e.shortName})`,
+  subtitle: `${e.field} • ${e.degreeLevel.replace("DEG_", "")}`,
+  value: `${e.name} (${e.shortName})`,
+}));
+
+const OCCUPATION_OPTIONS = MASTER_OCCUPATION.map((o) => ({
+  title: o.name,
+  subtitle: o.description,
+  value: o.name,
+}));
+
 
 export const Route = createFileRoute("/_member/me")({
   head: () => ({
@@ -23,19 +38,21 @@ export const Route = createFileRoute("/_member/me")({
 });
 
 const TOPICS = [
-  { id: "marriage_timing", label: "Marriage Timing", options: ["Within 1 year", "1-2 years", "2-3 years", "Not sure yet"] },
-  { id: "children", label: "Children", options: ["Want someday", "Do not want", "Have & want more", "Have & do not want more"] },
-  { id: "diet", label: "Diet", options: ["Vegetarian", "Vegan", "Halal", "Kosher", "No restrictions"] },
-  { id: "smoking", label: "Smoking", options: ["Never", "Occasionally", "Regularly"] },
-  { id: "career_partnership", label: "Career Ambition", options: ["Very ambitious", "Balanced", "Work to live"] },
-  { id: "money_management", label: "Finances", options: ["Saver", "Balanced", "Spender"] },
-  { id: "social_rhythm", label: "Social Life", options: ["Introvert (Homebody)", "Ambivert", "Extrovert (Outgoing)"] },
-  { id: "shared_language", label: "Communication", options: ["Direct & open", "Thoughtful & measured", "Non-confrontational"] },
-  { id: "handling_disagreement", label: "Conflict Resolution", options: ["Discuss immediately", "Need time to process", "Avoid if possible"] },
-  { id: "family_living", label: "Household Chores", options: ["Split equally", "Traditional roles", "Flexible/Outsource"] },
-  { id: "relocation", label: "Relocation", options: ["Willing to move anywhere", "Move within country", "Prefer to stay put"] },
-  { id: "culture_traditions", label: "Pets", options: ["Must have pets", "Open to pets", "No pets please"] },
-  { id: "shared_activities", label: "Travel", options: ["Frequent traveler", "Occasional vacations", "Prefer staying home"] }
+  { id: "marriage_timing", label: "Marriage Timing", icon: "💍", options: ["Within 1 year", "1-2 years", "2-3 years", "Not sure yet"] },
+  { id: "children", label: "Children", icon: "👶", options: ["Want someday", "Do not want", "Have & want more", "Have & do not want more"] },
+    { id: "shared_activities", label: "Travel", icon: "🏖️", options: ["Frequent traveler", "Occasional vacations", "Prefer staying home"] },
+
+  { id: "smoking", label: "Smoking", icon: "🚭", options: ["Never", "Occasionally", "Regularly"] },
+  { id: "career_partnership", label: "Career Ambition", icon: "💼", options: ["Very ambitious", "Balanced", "Work to live"] },
+  { id: "money_management", label: "Finances", icon: "💰", options: ["Saver", "Balanced", "Spender"] },
+  { id: "social_rhythm", label: "Social Life", icon: "🏡", options: ["Introvert (Homebody)", "Ambivert", "Extrovert (Outgoing)"] },
+  { id: "shared_language", label: "Communication", icon: "🗣️", options: ["Direct & open", "Thoughtful & measured", "Non-confrontational"] },
+  { id: "handling_disagreement", label: "Conflict Resolution", icon: "🤝", options: ["Discuss immediately", "Need time to process", "Avoid if possible"] },
+  { id: "family_living", label: "Household Chores", icon: "🧹", options: ["Split equally", "Traditional roles", "Flexible/Outsource"] },
+  { id: "relocation", label: "Relocation", icon: "✈️", options: ["Willing to move anywhere", "Move within country", "Prefer to stay put"] },
+  { id: "culture_traditions", label: "Pets", icon: "🐾", options: ["Must have pets", "Open to pets", "No pets please"] },
+  
+  { id: "diet", label: "Diet", icon: "🥗", options: ["Vegetarian", "Vegan", "Halal", "Kosher", "No restrictions"] }
 ];
 type TierList = { ideal: string[]; accepted: string[]; stretch: string[] };
 type TopicPreferencesState = Record<string, TierList>;
@@ -62,24 +79,38 @@ function MePage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: me, isLoading, error } = useQuery(meQuery());
-  const { register, handleSubmit, reset, getValues, setValue, formState } = useForm<FormValues>({
+  const { register, handleSubmit, reset, getValues, setValue, watch, formState } = useForm<FormValues>({
     resolver: zodResolver(schema) as any,
   });
 
   const [topicPrefs, setTopicPrefs] = useState<TopicPreferencesState>({});
   const updatePreference = (topicId: string, option: string, tier: 'ideal' | 'accepted' | 'stretch') => {
     setTopicPrefs((prev) => {
-      const current = prev[topicId] || { ideal: [], accepted: [], stretch: [] };
-      if (current[tier].includes(option)) {
-         return { ...prev, [topicId]: { ...current, [tier]: current[tier].filter((opt: string) => opt !== option) } };
+      const topicObj = prev[topicId] || {};
+      const ideal = Array.isArray(topicObj.ideal) ? topicObj.ideal : [];
+      const accepted = Array.isArray(topicObj.accepted) ? topicObj.accepted : [];
+      const stretch = Array.isArray(topicObj.stretch) ? topicObj.stretch : [];
+
+      const currentTierList = tier === 'ideal' ? ideal : tier === 'accepted' ? accepted : stretch;
+
+      if (currentTierList.includes(option)) {
+        return {
+          ...prev,
+          [topicId]: {
+            ideal: ideal.filter((o) => o !== option),
+            accepted: accepted.filter((o) => o !== option),
+            stretch: stretch.filter((o) => o !== option),
+          },
+        };
       }
+
       return {
         ...prev,
         [topicId]: {
-          ideal: tier === 'ideal' ? [...current.ideal.filter((o: string) => o !== option), option] : current.ideal.filter((o: string) => o !== option),
-          accepted: tier === 'accepted' ? [...current.accepted.filter((o: string) => o !== option), option] : current.accepted.filter((o: string) => o !== option),
-          stretch: tier === 'stretch' ? [...current.stretch.filter((o: string) => o !== option), option] : current.stretch.filter((o: string) => o !== option),
-        }
+          ideal: tier === 'ideal' ? [...ideal.filter((o) => o !== option), option] : ideal.filter((o) => o !== option),
+          accepted: tier === 'accepted' ? [...accepted.filter((o) => o !== option), option] : accepted.filter((o) => o !== option),
+          stretch: tier === 'stretch' ? [...stretch.filter((o) => o !== option), option] : stretch.filter((o) => o !== option),
+        },
       };
     });
   };
@@ -133,7 +164,7 @@ function MePage() {
 
   if (isLoading) {
     return (
-      <div className="stack-6" style={{ padding: "1.5rem", maxWidth: "900px", margin: "0 auto" }}>
+      <div className="stack-6" style={{ padding: "1.5rem 0", maxWidth: "1050px", margin: "0 auto" }}>
         {/* Header Skeleton exactly matching PageHeader */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
           <div className="stack-2">
@@ -234,8 +265,24 @@ function MePage() {
           <div className="grid-2">
             <Field id="name" label="Name" {...register("name")} error={formState.errors.name?.message} />
             <Field id="city" label="City" {...register("city")} />
-            <Field id="occupation" label="Occupation" {...register("occupation")} />
-            <Field id="education" label="Education" {...register("education")} />
+            <SearchableDropdown
+              id="education"
+              label="Education"
+              value={watch("education") || ""}
+              onChange={(val: string) => setValue("education", val, { shouldDirty: true })}
+              options={EDUCATION_OPTIONS}
+              placeholder="Select degree or type custom education..."
+              endpoint="/v1/education"
+            />
+            <SearchableDropdown
+              id="occupation"
+              label="Occupation"
+              value={watch("occupation") || ""}
+              onChange={(val: string) => setValue("occupation", val, { shouldDirty: true })}
+              options={OCCUPATION_OPTIONS}
+              placeholder="Select role or type custom occupation..."
+              endpoint="/v1/occupations"
+            />
             <Field id="languages" label="Languages (comma separated)" {...register("languages")} />
           </div>
           <div className="ds-field">
@@ -247,11 +294,7 @@ function MePage() {
             </div>
             <Textarea id="bio" rows={4} {...register("bio")} />
           </div>
-          <div className="ds-field">
-            <Label htmlFor="futurePlans">Future plans</Label>
-            <Textarea id="futurePlans" rows={3} {...register("futurePlans")} />
-          </div>
-          <Heading level="h3">Looking for (Partner Preferences)</Heading>
+          <Heading level="h3">Looking for</Heading>
           <div className="grid-2">
             <div className="ds-field">
               <Label htmlFor="gender">Gender</Label>
@@ -267,25 +310,135 @@ function MePage() {
             <Field id="cities" label="Preferred Cities (comma separated)" {...register("cities")} />
             <Field id="settlementCities" label="Settlement Cities (comma separated)" {...register("settlementCities")} />
           </div>
-          <Heading level="h3" style={{ marginTop: "2rem" }}>16-Topic Compatibility</Heading>
-          <div className="stack-4">
-            {TOPICS.map((topic) => (
-              <div key={topic.id} className="ds-field stack-2" style={{ padding: "1rem", background: "var(--surface-sunken, rgba(0,0,0,0.02))", borderRadius: "8px" }}>
-                <Label>{topic.label}</Label>
-                <div className="stack-3">
-                  {topic.options.map((opt) => (
-                    <div key={opt} style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                      <span style={{ flex: 1, fontSize: "0.875rem" }}>{opt}</span>
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <Button type="button" size="sm" variant={topicPrefs[topic.id]?.ideal.includes(opt) ? "primary" : "outline"} onClick={() => updatePreference(topic.id, opt, "ideal")} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "auto" }}>Ideal</Button>
-                        <Button type="button" size="sm" variant={topicPrefs[topic.id]?.accepted.includes(opt) ? "primary" : "outline"} onClick={() => updatePreference(topic.id, opt, "accepted")} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "auto" }}>Accepted</Button>
-                        <Button type="button" size="sm" variant={topicPrefs[topic.id]?.stretch.includes(opt) ? "primary" : "outline"} onClick={() => updatePreference(topic.id, opt, "stretch")} style={{ padding: "0.25rem 0.5rem", fontSize: "0.75rem", height: "auto" }}>Stretch</Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          {/* Redesigned Premium Partner Preferences Grid */}
+          <div style={{ marginTop: "2rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.25rem" }}>
+              <div>
+                <Heading level="h3" style={{ margin: 0 }}>Partner Preferences</Heading>
+                <Text variant="caption" style={{ color: "var(--muted-foreground)" }}>
+                  Select your preference tier for each lifestyle & values option.
+                </Text>
               </div>
-            ))}
+              
+              {/* Legend Bar */}
+              <div style={{ display: "flex", gap: "0.75rem", background: "var(--surface-sunken, rgba(0,0,0,0.03))", padding: "0.35rem 0.85rem", borderRadius: "999px", fontSize: "0.75rem", border: "1px solid var(--border)" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontWeight: 600, color: "var(--rose-active)" }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--rose-active)" }} /> Ideal
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontWeight: 600, color: "#10b981" }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981" }} /> Accepted
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontWeight: 600, color: "#f59e0b" }}>
+                  <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#f59e0b" }} /> Stretch
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.25rem" }}>
+              {TOPICS.map((topic) => (
+                <div 
+                  key={topic.id} 
+                  style={{
+                    background: "var(--surface-sunken, rgba(0,0,0,0.015))",
+                    border: "1px solid var(--border)",
+                    borderRadius: "14px",
+                    padding: "1.1rem 1.25rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.85rem",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.01)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "1.2rem" }}>{topic.icon || "✨"}</span>
+                    <span style={{ fontWeight: 600, fontSize: "0.95rem", color: "var(--ink)" }}>{topic.label}</span>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {topic.options.map((opt) => {
+                      const isIdeal = Boolean(topicPrefs[topic.id]?.ideal?.includes(opt));
+                      const isAccepted = Boolean(topicPrefs[topic.id]?.accepted?.includes(opt));
+                      const isStretch = Boolean(topicPrefs[topic.id]?.stretch?.includes(opt));
+
+                      return (
+                        <div 
+                          key={opt} 
+                          style={{ 
+                            display: "flex", 
+                            justifyContent: "space-between", 
+                            alignItems: "center", 
+                            gap: "0.75rem",
+                            background: "var(--card)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "10px",
+                            padding: "0.45rem 0.75rem",
+                          }}
+                        >
+                          <span style={{ fontSize: "0.85rem", fontWeight: 500, color: "var(--ink)", flex: 1 }}>{opt}</span>
+                          
+                          <div style={{ display: "inline-flex", gap: "0.15rem", background: "rgba(0,0,0,0.04)", padding: "0.15rem", borderRadius: "999px", border: "1px solid var(--border)", flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => updatePreference(topic.id, opt, "ideal")}
+                              style={{
+                                border: "none",
+                                borderRadius: "999px",
+                                padding: "0.2rem 0.55rem",
+                                fontSize: "0.725rem",
+                                fontWeight: isIdeal ? 700 : 500,
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                                background: isIdeal ? "var(--rose-active)" : "transparent",
+                                color: isIdeal ? "#ffffff" : "var(--muted-foreground)",
+                                boxShadow: isIdeal ? "0 2px 6px rgba(186,107,120,0.4)" : "none",
+                              }}
+                            >
+                              Ideal
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updatePreference(topic.id, opt, "accepted")}
+                              style={{
+                                border: "none",
+                                borderRadius: "999px",
+                                padding: "0.2rem 0.55rem",
+                                fontSize: "0.725rem",
+                                fontWeight: isAccepted ? 700 : 500,
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                                background: isAccepted ? "#10b981" : "transparent",
+                                color: isAccepted ? "#ffffff" : "var(--muted-foreground)",
+                                boxShadow: isAccepted ? "0 2px 6px rgba(16,185,129,0.3)" : "none",
+                              }}
+                            >
+                              Accepted
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updatePreference(topic.id, opt, "stretch")}
+                              style={{
+                                border: "none",
+                                borderRadius: "999px",
+                                padding: "0.2rem 0.55rem",
+                                fontSize: "0.725rem",
+                                fontWeight: isStretch ? 700 : 500,
+                                cursor: "pointer",
+                                transition: "all 0.15s ease",
+                                background: isStretch ? "#f59e0b" : "transparent",
+                                color: isStretch ? "#ffffff" : "var(--muted-foreground)",
+                                boxShadow: isStretch ? "0 2px 6px rgba(245,158,11,0.3)" : "none",
+                              }}
+                            >
+                              Stretch
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
           {(save.error || draft.error) && <p className="ds-field__hint ds-field__hint--error" role="alert">{(save.error ?? draft.error)?.message}</p>}
           {save.isSuccess && <Text variant="strong">Saved.</Text>}

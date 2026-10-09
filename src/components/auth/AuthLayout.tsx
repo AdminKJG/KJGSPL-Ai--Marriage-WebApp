@@ -11,7 +11,7 @@ const HEADLINES: Record<
     title: "Find your true counterpart.",
     subtitle: "Intelligent matching built on shared values, personality, and lifelong intent.",
     quote: "A thoughtful space where we felt genuinely known, not just filtered.",
-    author: "Divya & Kabir — Matched in Pune",
+    author: "",
   },
   login: {
     title: "Welcome back to your journey.",
@@ -35,7 +35,7 @@ export function AuthLayout({
   children,
 }: {
   variant: AuthVariant;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -43,218 +43,215 @@ export function AuthLayout({
   const content = HEADLINES[variant];
 
   return (
-    <main className="auth-stage">
-      {/* Soft ambient background shapes */}
-      <div className="auth-stage__bg" aria-hidden="true">
-        <span className="auth-stage__ring auth-stage__ring--a" />
-        <span className="auth-stage__ring auth-stage__ring--b" />
-        <span className="auth-stage__blob" />
-      </div>
+    <>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .auth-container {
+          display: flex;
+          min-height: 100vh;
+          width: 100%;
+          background: #ffffff;
+          font-family: var(--font-sans, system-ui, sans-serif);
+        }
+        .auth-left {
+          flex: 1;
+          display: none;
+          flex-direction: column;
+          justify-content: flex-start;
+          align-items: center;
+          padding: 3rem 2.5rem;
+          background: linear-gradient(135deg, #1f0b11 0%, #3d1421 50%, #17070b 100%);
+          color: white;
+          position: relative;
+          overflow: hidden;
+          text-align: center;
+        }
+        @media (min-width: 900px) {
+          .auth-left { display: flex; }
+        }
+        .auth-right {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          padding: 1rem;
+          background: #ffffff;
+          position: relative;
+        }
+        @media (min-width: 900px) {
+          .auth-right { padding: 4rem; max-width: 600px; margin: 0 auto; }
+        }
+        .auth-glow {
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          width: 80%; height: 80%;
+          background: radial-gradient(circle, rgba(225,29,72,0.15) 0%, transparent 70%);
+          filter: blur(60px);
+          pointer-events: none;
+        }
+        .auth-logo {
+          height: 125px;
+          object-fit: contain;
+          filter: drop-shadow(0 10px 24px rgba(0,0,0,0.45));
+          animation: fadeIn 0.8s ease-out;
+          transition: transform 0.3s ease;
+          margin-bottom: 1.5rem;
+        }
+        .auth-logo:hover {
+          transform: scale(1.03);
+        }
+        .auth-mobile-logo {
+          height: 70px;
+          object-fit: contain;
+          margin-bottom: 1rem;
+          animation: fadeIn 0.5s ease-out;
+        }
+        @media (min-width: 900px) {
+          .auth-mobile-logo { display: none; }
+        }
+        .auth-eyebrow-text {
+          font-size: 0.75rem;
+          font-weight: 800;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          color: #f43f5e;
+          margin-bottom: 0.75rem;
+          animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+        .auth-title-main {
+          font-family: var(--font-serif, Georgia, serif);
+          font-size: clamp(2.25rem, 4vw, 3.5rem);
+          font-weight: 700;
+          line-height: 1.15;
+          margin-bottom: 1rem;
+          color: #ffffff;
+          animation: slideIn 0.8s ease-out 0.3s both;
+        }
+        .auth-title-highlight {
+          color: #e11d48;
+        }
+        .auth-subtitle-main {
+          font-size: 1.05rem;
+          line-height: 1.6;
+          color: rgba(255,255,255,0.8);
+          max-width: 440px;
+          margin: 0 auto;
+          animation: slideIn 0.8s ease-out 0.4s both;
+        }
+        .auth-form-container {
+          width: 100%;
+          max-width: 420px;
+          margin: 0 auto;
+          animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+        .auth-form-container .ds-input {
+          border-radius: 9999px !important;
+          padding-top: 0.75rem;
+          padding-bottom: 0.75rem;
+          height: 48px;
+          border: 1.5px solid #e2e8f0;
+          font-size: 0.95rem;
+          transition: all 0.2s ease-in-out;
+          background: #ffffff;
+        }
+        .auth-form-container .ds-input:focus {
+          border-color: #e11d48 !important;
+          box-shadow: 0 0 0 4px rgba(225, 29, 72, 0.12) !important;
+          outline: none;
+        }
+        .auth-form-eyebrow {
+          font-size: 0.85rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #e11d48;
+          margin-bottom: 0.5rem;
+        }
+        .auth-form-title {
+          font-size: 2rem;
+          font-family: var(--font-serif, Georgia, serif);
+          font-weight: 800;
+          color: #111827;
+          margin-bottom: 0.5rem;
+          line-height: 1.2;
+        }
+        .auth-form-subtitle {
+          font-size: 0.95rem;
+          color: #4b5563;
+          margin-bottom: 2rem;
+          line-height: 1.5;
+        }
+      `}</style>
 
-      {/* Main Two-Panel Card */}
-      <div className="auth-split auth-enter" key={variant}>
-        {/* LEFT PANEL: Clean & Luxurious Brand Showcase */}
-        <section
-          className="auth-visual"
-          style={{
-            background: "linear-gradient(150deg, #240d14 0%, #38121c 50%, #15060a 100%)",
-            color: "#ffffff",
-            padding: "clamp(2.5rem, 6vh, 4.5rem) clamp(2.5rem, 5vw, 5rem)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            position: "relative",
-          }}
-        >
-          {/* Subtle Warm Amber Glow Behind Logo */}
-          <div
-            style={{
-              position: "absolute",
-              top: "-40px",
-              left: "10px",
-              width: "380px",
-              height: "280px",
-              background: "radial-gradient(circle, rgba(234, 88, 12, 0.32) 0%, rgba(216, 137, 121, 0.12) 65%, transparent 80%)",
-              filter: "blur(40px)",
-              pointerEvents: "none",
-            }}
-          />
-
-          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", gap: "clamp(1.5rem, 3vh, 2.5rem)" }}>
-            {/* 1. Official AI Marriage Brand Logo */}
-            <Link to="/" style={{ display: "inline-block", width: "fit-content", textDecoration: "none" }}>
-              <img
-                src="/assets/ai_marriage_logo.png"
-                alt="AI Marriage Logo"
-                style={{
-                  height: "clamp(70px, 8.5vh, 88px)",
-                  width: "auto",
-                  objectFit: "contain",
-                  filter: "drop-shadow(0 8px 24px rgba(0, 0, 0, 0.55))",
-                }}
-              />
+      <div className="auth-container">
+        {/* LEFT PANEL - Premium Branding */}
+        <div className="auth-left">
+          <div className="auth-glow"></div>
+          
+          <div style={{ position: "relative", zIndex: 10, display: "flex", flexDirection: "column", alignItems: "center", maxWidth: "520px" }}>
+            {/* Logo */}
+            <Link to="/">
+              <img src="/assets/ai_marriage_logo.png" alt="AI Marriage Logo" className="auth-logo" />
             </Link>
 
-            {/* 2. Platform Headline & Value Proposition (Concise & Minimal) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "9999px",
-                  background: "rgba(234, 88, 12, 0.18)",
-                  border: "1px solid rgba(234, 88, 12, 0.35)",
-                  color: "#fed7aa",
-                  fontSize: "0.74rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  width: "fit-content",
-                }}
-              >
-                <span>✨</span>
-                <span>AI-Powered Matrimony</span>
-              </div>
+            <p className="auth-eyebrow-text">INTELLIGENT. SECURE. LIFELONG.</p>
+            
+            <h1 className="auth-title-main">
+              {variant === "login" ? (
+                <>Find the connection <br/><span className="auth-title-highlight">of a lifetime.</span></>
+              ) : (
+                <>{content.title}</>
+              )}
+            </h1>
+            
+            <p className="auth-subtitle-main">{content.subtitle}</p>
 
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(1.75rem, 2.8vw, 2.4rem)",
-                  fontFamily: "var(--font-serif, Georgia, serif)",
-                  fontWeight: 700,
-                  lineHeight: 1.2,
-                  color: "#fff9f2",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {content.title}
-              </h2>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(0.95rem, 1.1vw, 1.05rem)",
-                  lineHeight: 1.55,
-                  color: "rgba(255, 249, 242, 0.8)",
-                  maxWidth: "28rem",
-                }}
-              >
-                {content.subtitle}
-              </p>
-            </div>
-
-            {/* 3. Sleek 3 Single-Line Trust Pills */}
+            {/* Testimonial Quote */}
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.65rem",
-                marginTop: "0.5rem",
+                marginTop: "2rem",
+                background: "rgba(255, 255, 255, 0.06)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                borderRadius: "14px",
+                padding: "0.85rem 1.25rem",
+                maxWidth: "420px",
+                backdropFilter: "blur(12px)",
               }}
             >
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.65rem 1rem",
-                  borderRadius: "0.75rem",
-                  background: "rgba(255, 249, 242, 0.06)",
-                  border: "1px solid rgba(255, 249, 242, 0.12)",
-                  color: "#fff9f2",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  width: "fit-content",
-                }}
-              >
-                <span style={{ color: "#f59e0b" }}>✦</span>
-                <span>AI Psychological & Values Match</span>
-              </div>
-
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.65rem 1rem",
-                  borderRadius: "0.75rem",
-                  background: "rgba(255, 249, 242, 0.06)",
-                  border: "1px solid rgba(255, 249, 242, 0.12)",
-                  color: "#fff9f2",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  width: "fit-content",
-                }}
-              >
-                <span style={{ color: "#10b981" }}>🛡️</span>
-                <span>100% Verified Members Only</span>
-              </div>
-
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.65rem 1rem",
-                  borderRadius: "0.75rem",
-                  background: "rgba(255, 249, 242, 0.06)",
-                  border: "1px solid rgba(255, 249, 242, 0.12)",
-                  color: "#fff9f2",
-                  fontSize: "0.9rem",
-                  fontWeight: 600,
-                  width: "fit-content",
-                }}
-              >
-                <span style={{ color: "#f43f5e" }}>🔒</span>
-                <span>Private & Mutual Consent First</span>
-              </div>
+              <p style={{ margin: 0, fontSize: "0.85rem", fontStyle: "italic", color: "rgba(255, 255, 255, 0.9)", lineHeight: 1.4 }}>
+                "{content.quote}"
+              </p>
+              <p style={{ margin: "0.35rem 0 0", fontSize: "0.75rem", fontWeight: 700, color: "#f43f5e", letterSpacing: "0.02em" }}>
+                — {content.author}
+              </p>
             </div>
           </div>
+        </div>
 
-          {/* 4. Bottom Member Story Quote (Compact & Clean) */}
-          <div style={{ position: "relative", zIndex: 1, marginTop: "2rem", paddingTop: "1.25rem", borderTop: "1px solid rgba(255, 249, 242, 0.12)" }}>
-            <p style={{ margin: 0, fontSize: "0.88rem", fontStyle: "italic", color: "rgba(255, 249, 242, 0.88)", lineHeight: 1.5 }}>
-              “{content.quote}”
-            </p>
-            <p style={{ margin: "0.35rem 0 0", fontSize: "0.8rem", fontWeight: 600, color: "#fed7aa" }}>
-              {content.author}
-            </p>
-          </div>
-        </section>
-
-        {/* RIGHT PANEL: Authentication Form */}
-        <section className="auth-panel">
-          <div className="auth-panel__inner">
-            <div className="auth-panel__mobile-brand" style={{ textAlign: "center", marginBottom: "0.75rem" }}>
-              <img
-                src="/assets/ai_marriage_logo.png"
-                alt="AI Marriage Logo"
-                style={{ height: "46px", width: "auto", objectFit: "contain" }}
-              />
+        {/* RIGHT PANEL - Login Form */}
+        <div className="auth-right">
+          <div className="auth-form-container">
+            {/* Mobile Logo (Visible only on small screens) */}
+            <div style={{ textAlign: "center" }}>
+              <Link to="/">
+                <img src="/assets/ai_marriage_logo.png" alt="AI Marriage Logo" className="auth-mobile-logo" />
+              </Link>
             </div>
 
-            <p className="ds-text--caption auth-eyebrow auth-rise-1" key={`e-${variant}`}>
-              {eyebrow}
-            </p>
-            <h1 className="auth-title auth-slide-r" key={`t-${variant}`}>
-              {title}
-            </h1>
-            <p className="auth-subtitle auth-rise-2" key={`s-${variant}`}>
-              {subtitle}
-            </p>
+            {eyebrow && <p className="auth-form-eyebrow">{eyebrow}</p>}
+            <h2 className="auth-form-title">{title}</h2>
+            <p className="auth-form-subtitle">{subtitle}</p>
 
-            <div className="auth-form auth-rise-3" key={`f-${variant}`}>
+            <div style={{ marginTop: "2rem" }}>
               {children}
             </div>
-
-            <p className="auth-secure">
-              🛡️ Profiles are manually reviewed. Photos and personal details remain strictly private until approved.
-            </p>
+            
+        
           </div>
-        </section>
+        </div>
       </div>
-    </main>
+    </>
   );
 }

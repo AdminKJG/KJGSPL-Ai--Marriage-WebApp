@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useEffect, useRef, useState, type KeyboardEvent, type ChangeEvent } from "react";
 import { Avatar, ErrorState, LoadingState } from "@/components/ui";
+import { useToast } from "@/components/ui/Toast";
 import { aiApi, callsApi, chatApi, messagesQuery, profileQuery, conversationsQuery, qk } from "@/lib/api/modules";
 import { getSocket } from "@/lib/socket";
 import { callAccepted, useAppDispatch } from "@/store";
@@ -92,6 +93,7 @@ function WhatsAppChatPage() {
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [isBotTyping, setIsBotTyping] = useState<boolean>(false);
+  const { showError } = useToast();
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<{ text: string }>({
     resolver: zodResolver(schema),
@@ -233,8 +235,6 @@ function WhatsAppChatPage() {
       throw new Error("No conversation ID");
     },
     onSuccess: () => {
-      reset({ text: "" });
-      handleClearAttachment();
       if (conversationId) {
         qc.invalidateQueries({ queryKey: qk.messages(conversationId) });
       }
@@ -244,6 +244,12 @@ function WhatsAppChatPage() {
           scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
       }, 50);
+    },
+    onError: (err: Error) => {
+      showError(err.message || "Failed to send message. Please try again.", "Message Failed");
+    },
+    onSettled: () => {
+      send.reset();
     },
   });
 
@@ -292,14 +298,18 @@ function WhatsAppChatPage() {
   };
 
   const submitMessage = (v: { text?: string }) => {
-    if (!v.text?.trim() && !attachment) return;
-    send.mutate({ text: v.text, attachment });
+    const textToSend = v.text;
+    const currentAttachment = attachment;
+    if (!textToSend?.trim() && !currentAttachment) return;
+    reset({ text: "" });
+    handleClearAttachment();
+    send.mutate({ text: textToSend, attachment: currentAttachment });
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if ((textValue?.trim() || attachment) && !send.isPending) {
+      if (textValue?.trim() || attachment) {
         handleSubmit(submitMessage)();
       }
     }
@@ -605,7 +615,7 @@ function WhatsAppChatPage() {
           <button
             type="submit"
             className="whatsapp-send-btn"
-            disabled={(!textValue?.trim() && !attachment) || send.isPending}
+            disabled={!textValue?.trim() && !attachment}
             title="Send Message"
             aria-label="Send Message"
           >

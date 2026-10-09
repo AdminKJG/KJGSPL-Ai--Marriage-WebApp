@@ -13,9 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MemberRouteImport } from './routes/_member'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as MemberAccountCentreRouteImport } from './routes/_member.account-centre'
 import { Route as MemberBillingRouteImport } from './routes/_member.billing'
+import { Route as MemberBlockedRouteImport } from './routes/_member.blocked'
 import { Route as MemberConnectionsRouteImport } from './routes/_member.connections'
 import { Route as MemberDiscoverRouteImport } from './routes/_member.discover'
 import { Route as MemberEventsRouteImport } from './routes/_member.events'
@@ -47,6 +49,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -60,6 +67,11 @@ const MemberAccountCentreRoute = MemberAccountCentreRouteImport.update({
 const MemberBillingRoute = MemberBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
+  getParentRoute: () => MemberRoute,
+} as any)
+const MemberBlockedRoute = MemberBlockedRouteImport.update({
+  id: '/blocked',
+  path: '/blocked',
   getParentRoute: () => MemberRoute,
 } as any)
 const MemberConnectionsRoute = MemberConnectionsRouteImport.update({
@@ -122,9 +134,11 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/register': typeof RegisterRoute
   '/account-centre': typeof MemberAccountCentreRoute
   '/billing': typeof MemberBillingRoute
+  '/blocked': typeof MemberBlockedRoute
   '/connections': typeof MemberConnectionsRoute
   '/discover': typeof MemberDiscoverRoute
   '/events': typeof MemberEventsRoute
@@ -141,9 +155,11 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/register': typeof RegisterRoute
   '/account-centre': typeof MemberAccountCentreRoute
   '/billing': typeof MemberBillingRoute
+  '/blocked': typeof MemberBlockedRoute
   '/connections': typeof MemberConnectionsRoute
   '/discover': typeof MemberDiscoverRoute
   '/events': typeof MemberEventsRoute
@@ -161,9 +177,11 @@ export interface FileRoutesById {
   '/_member': typeof MemberRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
   '/register': typeof RegisterRoute
   '/_member/account-centre': typeof MemberAccountCentreRoute
   '/_member/billing': typeof MemberBillingRoute
+  '/_member/blocked': typeof MemberBlockedRoute
   '/_member/connections': typeof MemberConnectionsRoute
   '/_member/discover': typeof MemberDiscoverRoute
   '/_member/events': typeof MemberEventsRoute
@@ -182,9 +200,11 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot-password'
     | '/login'
+    | '/onboarding'
     | '/register'
     | '/account-centre'
     | '/billing'
+    | '/blocked'
     | '/connections'
     | '/discover'
     | '/events'
@@ -201,9 +221,11 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot-password'
     | '/login'
+    | '/onboarding'
     | '/register'
     | '/account-centre'
     | '/billing'
+    | '/blocked'
     | '/connections'
     | '/discover'
     | '/events'
@@ -220,9 +242,11 @@ export interface FileRouteTypes {
     | '/_member'
     | '/forgot-password'
     | '/login'
+    | '/onboarding'
     | '/register'
     | '/_member/account-centre'
     | '/_member/billing'
+    | '/_member/blocked'
     | '/_member/connections'
     | '/_member/discover'
     | '/_member/events'
@@ -241,6 +265,7 @@ export interface RootRouteChildren {
   MemberRoute: typeof MemberRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  OnboardingRoute: typeof OnboardingRoute
   RegisterRoute: typeof RegisterRoute
 }
 
@@ -274,6 +299,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -293,6 +325,13 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof MemberBillingRouteImport
+      parentRoute: typeof MemberRoute
+    }
+    '/_member/blocked': {
+      id: '/_member/blocked'
+      path: '/blocked'
+      fullPath: '/blocked'
+      preLoaderRoute: typeof MemberBlockedRouteImport
       parentRoute: typeof MemberRoute
     }
     '/_member/connections': {
@@ -392,6 +431,7 @@ const MemberMessagesRouteWithChildren = MemberMessagesRoute._addFileChildren(
 interface MemberRouteChildren {
   MemberAccountCentreRoute: typeof MemberAccountCentreRoute
   MemberBillingRoute: typeof MemberBillingRoute
+  MemberBlockedRoute: typeof MemberBlockedRoute
   MemberConnectionsRoute: typeof MemberConnectionsRoute
   MemberDiscoverRoute: typeof MemberDiscoverRoute
   MemberEventsRoute: typeof MemberEventsRoute
@@ -406,6 +446,7 @@ interface MemberRouteChildren {
 const MemberRouteChildren: MemberRouteChildren = {
   MemberAccountCentreRoute: MemberAccountCentreRoute,
   MemberBillingRoute: MemberBillingRoute,
+  MemberBlockedRoute: MemberBlockedRoute,
   MemberConnectionsRoute: MemberConnectionsRoute,
   MemberDiscoverRoute: MemberDiscoverRoute,
   MemberEventsRoute: MemberEventsRoute,
@@ -425,6 +466,7 @@ const rootRouteChildren: RootRouteChildren = {
   MemberRoute: MemberRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  OnboardingRoute: OnboardingRoute,
   RegisterRoute: RegisterRoute,
 }
 export const routeTree = rootRouteImport

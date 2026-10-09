@@ -9,9 +9,11 @@ import {
 import { useState, type ReactNode } from "react";
 import { Provider as ReduxProvider } from "react-redux";
 import { makeStore } from "@/store";
+import { ToastProvider } from "@/components/ui/Toast";
 
 import appCss from "../styles.css?url";
 import themeCss from "@/styles/theme.css?url";
+
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -95,7 +97,9 @@ function RootComponent() {
   return (
     <ReduxProvider store={store}>
       <QueryClientProvider client={queryClient}>
-        <Outlet />
+        <ToastProvider>
+          <Outlet />
+        </ToastProvider>
       </QueryClientProvider>
     </ReduxProvider>
   );

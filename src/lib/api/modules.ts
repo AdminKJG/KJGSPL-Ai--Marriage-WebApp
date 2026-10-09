@@ -69,6 +69,15 @@ export interface RegisterInput {
   adultConfirmed: true;
 }
 
+export interface RegisterResponse {
+  registered?: boolean;
+  message?: string;
+  onboarding?: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: SessionUser;
+}
+
 export const authApi = {
   login: (body: LoginInput) =>
     api<{ accessToken: string; refreshToken: string; user: SessionUser }>("/v1/auth/login", {
@@ -77,7 +86,7 @@ export const authApi = {
       auth: false,
     }),
   register: (body: RegisterInput) =>
-    api<{ registered: boolean; message: string }>("/v1/auth/register", { method: "POST", body, auth: false }),
+    api<RegisterResponse>("/v1/auth/register", { method: "POST", body, auth: false }),
   session: () => api<{ user: SessionUser }>("/v1/auth/session"),
   logout: (refreshToken: string | null) =>
     api("/v1/auth/logout", { method: "POST", body: refreshToken ? { refreshToken } : {} }),
@@ -101,6 +110,8 @@ export const discoveryApi = {
   getFeed: (params: {
     page?: number;
     limit?: number;
+    country?: string;
+    state?: string;
     city?: string;
     minAge?: number | "";
     maxAge?: number | "";
@@ -111,10 +122,18 @@ export const discoveryApi = {
     maritalStatus?: string;
     education?: string;
     occupation?: string;
+    profession?: string;
+    minIncome?: number | "";
+    maxIncome?: number | "";
+    diet?: string;
+    smoking?: string;
+    drinking?: string;
   } = {}) => {
     const q = new URLSearchParams();
     if (params.page) q.set("page", String(params.page));
     if (params.limit) q.set("limit", String(params.limit ?? 10));
+    if (params.country) q.set("country", params.country);
+    if (params.state) q.set("state", params.state);
     if (params.city && params.city !== "All cities") q.set("city", params.city);
     if (params.minAge !== undefined && params.minAge !== "") q.set("minAge", String(params.minAge));
     if (params.maxAge !== undefined && params.maxAge !== "") q.set("maxAge", String(params.maxAge));
@@ -125,6 +144,12 @@ export const discoveryApi = {
     if (params.maritalStatus) q.set("maritalStatus", params.maritalStatus);
     if (params.education) q.set("education", params.education);
     if (params.occupation) q.set("occupation", params.occupation);
+    if (params.profession) q.set("profession", params.profession);
+    if (params.minIncome !== undefined && params.minIncome !== "") q.set("minIncome", String(params.minIncome));
+    if (params.maxIncome !== undefined && params.maxIncome !== "") q.set("maxIncome", String(params.maxIncome));
+    if (params.diet) q.set("diet", params.diet);
+    if (params.smoking) q.set("smoking", params.smoking);
+    if (params.drinking) q.set("drinking", params.drinking);
 
     const queryStr = q.toString();
     return api<DiscoveryResponse>(`/v1/discovery${queryStr ? `?${queryStr}` : ""}`);
@@ -627,6 +652,8 @@ export const discoveryQuery = (
   params?: {
     page?: number;
     limit?: number;
+    country?: string;
+    state?: string;
     city?: string;
     minAge?: number | "";
     maxAge?: number | "";
@@ -637,6 +664,12 @@ export const discoveryQuery = (
     maritalStatus?: string;
     education?: string;
     occupation?: string;
+    profession?: string;
+    minIncome?: number | "";
+    maxIncome?: number | "";
+    diet?: string;
+    smoking?: string;
+    drinking?: string;
   } | number
 ) => {
   const filterParams = typeof params === "number" ? { page: params, limit: 10 } : { page: 1, limit: 10, ...params };

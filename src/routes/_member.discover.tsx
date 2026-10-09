@@ -2,9 +2,23 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type ChangeEvent } from "react";
 import { Button, Card, Input, Label, Text } from "@/components/ui";
+import { SearchableDropdown } from "@/components/ui/SearchableDropdown";
 import { ErrorState } from "@/components/ui";
 import { MatrimonialDiscoveryCard } from "@/components/discovery/MatrimonialDiscoveryCard";
 import { configQuery, connectionsQuery, discoveryApi, discoveryQuery, getLocalSavedIds, qk } from "@/lib/api/modules";
+import { MASTER_EDUCATION, MASTER_OCCUPATION } from "@/lib/constants/masterData";
+
+const EDUCATION_OPTIONS = MASTER_EDUCATION.map((e) => ({
+  title: `${e.name} (${e.shortName})`,
+  subtitle: `${e.field} • ${e.degreeLevel.replace("DEG_", "")}`,
+  value: `${e.name} (${e.shortName})`,
+}));
+
+const OCCUPATION_OPTIONS = MASTER_OCCUPATION.map((o) => ({
+  title: o.name,
+  subtitle: o.description,
+  value: o.name,
+}));
 
 export const Route = createFileRoute("/_member/discover")({
   head: () => ({
@@ -38,10 +52,67 @@ const DEFAULT_INTEREST_OPTIONS = [
 function DiscoverPage() {
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [minAge, setMinAge] = useState<number | "">("");
+  const [maxAge, setMaxAge] = useState<number | "">("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("All cities");
+  const [educationFilter, setEducationFilter] = useState("");
+  const [professionFilter, setProfessionFilter] = useState("");
+  const [minIncome, setMinIncome] = useState<number | "">("");
+  const [maxIncome, setMaxIncome] = useState<number | "">("");
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [maritalStatusFilter, setMaritalStatusFilter] = useState("");
+  const [dietFilter, setDietFilter] = useState("");
+  const [smokingFilter, setSmokingFilter] = useState("");
+  const [drinkingFilter, setDrinkingFilter] = useState("");
   const [interestFilter, setInterestFilter] = useState("All interests");
   const [citySuggestions, setCitySuggestions] = useState<string[]>([]);
   const [sentInterests, setSentInterests] = useState<Set<string>>(new Set());
+
+  const [appliedFilters, setAppliedFilters] = useState({
+    minAge: "" as number | "",
+    maxAge: "" as number | "",
+    city: "All cities",
+    education: "",
+    profession: "",
+    minIncome: "" as number | "",
+    maxIncome: "" as number | "",
+  });
+
+  const applyFilters = () => {
+    setAppliedFilters({
+      minAge,
+      maxAge,
+      city: cityFilter,
+      education: educationFilter,
+      profession: professionFilter,
+      minIncome,
+      maxIncome,
+    });
+    setPage(1);
+    setShowFilters(false);
+  };
+
+  const resetFilters = () => {
+    setMinAge("");
+    setMaxAge("");
+    setCityFilter("All cities");
+    setEducationFilter("");
+    setProfessionFilter("");
+    setMinIncome("");
+    setMaxIncome("");
+    setAppliedFilters({
+      minAge: "",
+      maxAge: "",
+      city: "All cities",
+      education: "",
+      profession: "",
+      minIncome: "",
+      maxIncome: "",
+    });
+    setPage(1);
+  };
 
   const qc = useQueryClient();
   const config = useQuery(configQuery());
@@ -61,17 +132,29 @@ function DiscoverPage() {
   const connections = useQuery(connectionsQuery());
 
   // 2. GET /v1/discovery — Fetch discovery feed
-  const activeCity = cityFilter === "All cities" ? "" : cityFilter;
+  const activeCity = appliedFilters.city === "All cities" ? "" : appliedFilters.city;
   const activeInterest = interestFilter === "All interests" ? "" : interestFilter;
 
   const { data, isLoading, error } = useQuery(
     discoveryQuery({
       page,
       limit: 10,
+      minAge: appliedFilters.minAge,
+      maxAge: appliedFilters.maxAge,
       city: activeCity,
-      interest: activeInterest,
+      education: appliedFilters.education,
+      profession: appliedFilters.profession,
+      minIncome: appliedFilters.minIncome,
+      maxIncome: appliedFilters.maxIncome,
     })
   );
+
+  const activeFilterCount =
+    (activeCity ? 1 : 0) +
+    (appliedFilters.minAge || appliedFilters.maxAge ? 1 : 0) +
+    (appliedFilters.education ? 1 : 0) +
+    (appliedFilters.profession ? 1 : 0) +
+    (appliedFilters.minIncome || appliedFilters.maxIncome ? 1 : 0);
 
   // 3. POST /v1/interest — Express Interest / Connect
   const interestMutation = useMutation({
@@ -169,13 +252,7 @@ function DiscoverPage() {
     });
   }, [data?.items, activeCity, activeInterest]);
 
-  const activeFilterCount = (activeCity ? 1 : 0) + (activeInterest ? 1 : 0);
 
-  const resetFilters = () => {
-    setCityFilter("All cities");
-    setInterestFilter("All interests");
-    setCitySuggestions([]);
-  };
 
   return (
     <div className="discover-page-wrapper">
@@ -192,7 +269,7 @@ function DiscoverPage() {
             marginBottom: "0.25rem",
           }}
         >
-          BEYOND THE FIRST IMPRESSION
+          AI MATCHMAKING
         </span>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
           <div>
@@ -205,12 +282,12 @@ function DiscoverPage() {
                 lineHeight: 1.2,
               }}
             >
-              Someone worth getting to know.
+              Verified profiles for a lifelong bond.
             </h1>
             <p style={{ margin: "0.35rem 0 0", fontSize: "0.875rem", color: "var(--muted-foreground, #78716c)" }}>
               {data?.remaining != null
                 ? `${data.remaining} of 10 daily introductions remaining today`
-                : "Curated matches based on long-term compatibility."}
+                : "Curated AI recommendations based on shared values & long-term compatibility."}
             </p>
           </div>
 
@@ -234,7 +311,7 @@ function DiscoverPage() {
             }}
             title="Discovery filters"
           >
-            <span>🎛️ Tune Filters</span>
+            <span>⚡ Match Filters</span>
             {activeFilterCount > 0 && (
               <span
                 style={{
@@ -255,12 +332,12 @@ function DiscoverPage() {
           </button>
         </div>
 
-        {/* Active Filter Chips Bar matching discover.dart */}
+        {/* Active Filter Chips Bar */}
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center", marginTop: "1rem" }}>
-          {/* City ActionChip */}
+          {/* Quick Filter toggle button if no filters active */}
           <button
             type="button"
-            onClick={() => setShowFilters(true)}
+            onClick={() => setShowFilters(!showFilters)}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -278,10 +355,106 @@ function DiscoverPage() {
             📍 {activeCity || "All cities"}
           </button>
 
-          {/* Shared Interest InputChip */}
-          {activeInterest && (
-            <span className="filter-chip" onClick={() => setInterestFilter("All interests")}>
-              🎯 {activeInterest} ✕
+          {/* Age range chip */}
+          {(appliedFilters.minAge || appliedFilters.maxAge) && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "9999px",
+                border: "1px solid #fecdd3",
+                background: "#fff1f2",
+                color: "#be123c",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                setMinAge("");
+                setMaxAge("");
+                setAppliedFilters((prev) => ({ ...prev, minAge: "", maxAge: "" }));
+              }}
+              title="Click to remove age filter"
+            >
+              🎂 {appliedFilters.minAge && appliedFilters.maxAge ? `${appliedFilters.minAge}–${appliedFilters.maxAge} yrs` : appliedFilters.minAge ? `${appliedFilters.minAge}+ yrs` : `Up to ${appliedFilters.maxAge} yrs`} ✕
+            </span>
+          )}
+
+          {/* Education chip */}
+          {appliedFilters.education && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "9999px",
+                border: "1px solid #cbd5e1",
+                background: "#f1f5f9",
+                color: "#334155",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                setEducationFilter("");
+                setAppliedFilters((prev) => ({ ...prev, education: "" }));
+              }}
+            >
+              🎓 {appliedFilters.education} ✕
+            </span>
+          )}
+
+          {/* Profession chip */}
+          {appliedFilters.profession && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "9999px",
+                border: "1px solid #cbd5e1",
+                background: "#f1f5f9",
+                color: "#334155",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                setProfessionFilter("");
+                setAppliedFilters((prev) => ({ ...prev, profession: "" }));
+              }}
+            >
+              💼 {appliedFilters.profession} ✕
+            </span>
+          )}
+
+          {/* Income chip */}
+          {(appliedFilters.minIncome || appliedFilters.maxIncome) && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.35rem 0.75rem",
+                borderRadius: "9999px",
+                border: "1px solid #bbf7d0",
+                background: "#f0fdf4",
+                color: "#166534",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                setMinIncome("");
+                setMaxIncome("");
+                setAppliedFilters((prev) => ({ ...prev, minIncome: "", maxIncome: "" }));
+              }}
+            >
+              💰 ₹{appliedFilters.minIncome ? `${(Number(appliedFilters.minIncome) / 100000).toFixed(0)}L` : '0'}–{appliedFilters.maxIncome ? `₹${(Number(appliedFilters.maxIncome) / 100000).toFixed(0)}L` : 'Any'} ✕
             </span>
           )}
 
@@ -293,53 +466,186 @@ function DiscoverPage() {
                 background: "none",
                 border: "none",
                 fontSize: "0.8rem",
-                color: "#94a3b8",
+                color: "#ef4444",
+                fontWeight: 600,
                 cursor: "pointer",
-                textDecoration: "underline",
-                padding: "0 0.25rem",
+                padding: "0.35rem 0.5rem",
               }}
             >
-              Reset filters
+              Reset Filters
             </button>
           )}
         </div>
       </div>
 
-      {/* Filter Panel matching discover.dart _filters bottom sheet modal */}
+      {/* Clean & Spacious Filter Panel */}
       {showFilters && (
         <Card
           variant="surface"
           style={{
-            marginBottom: "1.75rem",
-            padding: "1.5rem 1.75rem",
+            marginBottom: "2rem",
+            padding: "2rem",
             borderRadius: "1.25rem",
             border: "1.5px solid #e2e8f0",
-            boxShadow: "0 10px 30px -5px rgba(0,0,0,0.06)",
+            background: "#ffffff",
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.04), 0 8px 10px -6px rgba(0, 0, 0, 0.02)",
           }}
         >
-          <div className="stack-4">
-            <div>
-              <h3 style={{ margin: 0, fontSize: "1.25rem", fontWeight: 700, color: "#1c1917" }}>
-                Make room for a connection.
-              </h3>
-              <p style={{ margin: "0.35rem 0 0", fontSize: "0.875rem", color: "#78716c" }}>
-                Refine these introductions. Your saved partner requirements still apply.
-              </p>
+          <div className="stack-6">
+            {/* Header of Filter Panel */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: "0.75rem", borderBottom: "1px solid #f1f5f9" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                  <h3 style={{ margin: 0, fontSize: "1.35rem", fontWeight: 700, color: "#1c1917" }}>
+                    Filter Introductions
+                  </h3>
+                  {activeFilterCount > 0 && (
+                    <span
+                      style={{
+                        background: "#fff1f2",
+                        color: "#be123c",
+                        border: "1px solid #fecdd3",
+                        padding: "0.15rem 0.6rem",
+                        borderRadius: "9999px",
+                        fontSize: "0.75rem",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {activeFilterCount} Active
+                    </span>
+                  )}
+                </div>
+                <p style={{ margin: "0.35rem 0 0", fontSize: "0.875rem", color: "#64748b" }}>
+                  Customize age range, location, education, occupation, and annual income.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowFilters(false)}
+                style={{
+                  background: "#f1f5f9",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "2.2rem",
+                  height: "2.2rem",
+                  fontSize: "1rem",
+                  fontWeight: 700,
+                  color: "#64748b",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                title="Close filters"
+              >
+                ✕
+              </button>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "1.25rem" }}>
-              {/* City (Leave empty for All cities) */}
-              <div className="stack-1" style={{ position: "relative" }}>
-                <Label htmlFor="filter-city" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#334155" }}>
-                  City (Leave empty for All cities)
+            {/* 2-Column Grid Layout */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "1.5rem" }}>
+              {/* 1. Age Range Dual Slider Block */}
+              <div className="stack-2" style={{ background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Label style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155" }}>
+                    🎂 AGE RANGE
+                  </Label>
+                  <span style={{ fontSize: "0.9rem", fontWeight: 700, color: "#991b1b" }}>
+                    {minAge || 18} – {maxAge || 60} Years
+                  </span>
+                </div>
+
+                {/* Range Slider Track */}
+                <div style={{ position: "relative", height: "2.4rem", display: "flex", alignItems: "center", width: "100%", marginTop: "0.25rem" }}>
+                  {/* Track Background */}
+                  <div style={{ position: "absolute", left: 0, right: 0, height: "8px", borderRadius: "4px", background: "#cbd5e1" }} />
+                  
+                  {/* Active Highlight Track */}
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: `${Math.max(0, Math.min(100, (((Number(minAge) || 18) - 18) / (70 - 18)) * 100))}%`,
+                      right: `${Math.max(0, Math.min(100, 100 - (((Number(maxAge) || 60) - 18) / (70 - 18)) * 100))}%`,
+                      height: "8px",
+                      borderRadius: "4px",
+                      background: "linear-gradient(90deg, #991b1b, #be123c)",
+                    }}
+                  />
+
+                  {/* Dual Sliders */}
+                  <input
+                    type="range"
+                    className="range-slider-input"
+                    min={18}
+                    max={70}
+                    value={minAge || 18}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const currentMax = Number(maxAge) || 60;
+                      if (val <= currentMax) {
+                        setMinAge(val);
+                      }
+                    }}
+                    style={{
+                      position: "absolute",
+                      width: "100%",
+                      height: "100%",
+                      margin: 0,
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      background: "transparent",
+                      pointerEvents: "auto",
+                      cursor: "pointer",
+                      zIndex: (Number(minAge) || 18) > 60 ? 5 : 3,
+                    }}
+                  />
+                  <input
+                    type="range"
+                    className="range-slider-input"
+                    min={18}
+                    max={70}
+                    value={maxAge || 60}
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
+                      const currentMin = Number(minAge) || 18;
+                      if (val >= currentMin) {
+                        setMaxAge(val);
+                      }
+                    }}
+                    style={{
+                      position: "absolute",
+                      width: "100%",
+                      height: "100%",
+                      margin: 0,
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      background: "transparent",
+                      pointerEvents: "auto",
+                      cursor: "pointer",
+                      zIndex: 4,
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "#64748b", marginTop: "-0.25rem" }}>
+                  <span>18 yrs</span>
+                  <span>70 yrs</span>
+                </div>
+              </div>
+
+              {/* 2. City Autocomplete Block */}
+              <div className="stack-2" style={{ background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
+                <Label htmlFor="filter-city" style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155" }}>
+                  📍 CITY / LOCATION
                 </Label>
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                   <Input
                     id="filter-city"
-                    placeholder="Search city (e.g. Mumbai, Delhi)..."
+                    placeholder="Search city (e.g. Mumbai, Delhi, Bangalore)..."
                     value={cityFilter === "All cities" ? "" : cityFilter}
                     onChange={handleCityChange}
-                    style={{ paddingRight: "2.25rem" }}
+                    style={{ paddingRight: "2.25rem", background: "#ffffff" }}
                   />
                   {activeCity && (
                     <button
@@ -406,48 +712,120 @@ function DiscoverPage() {
                 )}
               </div>
 
-              {/* Shared Interest Dropdown matching discover.dart */}
-              <div className="stack-1">
-                <Label htmlFor="filter-interest" style={{ fontSize: "0.85rem", fontWeight: 600, color: "#334155" }}>
-                  Shared interest
-                </Label>
-                <select
-                  id="filter-interest"
-                  className="ds-input"
-                  value={interestFilter}
-                  onChange={(e) => setInterestFilter(e.target.value)}
-                  style={{
-                    padding: "0.55rem 0.75rem",
-                    borderRadius: "0.5rem",
-                    border: "1px solid var(--border, #cbd5e1)",
-                    background: "#ffffff",
-                    fontSize: "0.875rem",
-                    width: "100%",
-                  }}
-                >
-                  {interestOptions.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+              {/* 3. Education Searchable Dropdown */}
+              <div className="stack-2" style={{ background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
+                <SearchableDropdown
+                  label="🎓 EDUCATION DEGREE"
+                  value={educationFilter}
+                  onChange={(val: string) => setEducationFilter(val)}
+                  options={EDUCATION_OPTIONS}
+                  placeholder="Search degree (e.g. B.Tech, MBA, MBBS)..."
+                  endpoint="/v1/education"
+                />
+              </div>
+
+              {/* 4. Profession / Occupation Searchable Dropdown */}
+              <div className="stack-2" style={{ background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
+                <SearchableDropdown
+                  label="💼 PROFESSION / OCCUPATION"
+                  value={professionFilter}
+                  onChange={(val: string) => setProfessionFilter(val)}
+                  options={OCCUPATION_OPTIONS}
+                  placeholder="Search occupation (e.g. Software Engineer)..."
+                  endpoint="/v1/occupations"
+                />
+              </div>
+
+              {/* 5. Annual Income Range (Full Width) */}
+              <div className="stack-2" style={{ gridColumn: "span 1 / -1", background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <Label style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155" }}>
+                    💰 ANNUAL INCOME RANGE (₹ RUPEES)
+                  </Label>
+                  {/* Quick Income Presets */}
+                  <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                    {([
+                      { label: "Any Income", min: "", max: "" },
+                      { label: "< 5 LPA", min: "", max: 500000 },
+                      { label: "5-10 LPA", min: 500000, max: 1000000 },
+                      { label: "10-20 LPA", min: 1000000, max: 2000000 },
+                      { label: "20-50 LPA", min: 2000000, max: 5000000 },
+                      { label: "50+ LPA", min: 5000000, max: "" },
+                    ] as const).map((inc) => {
+                      const isSel = minIncome === inc.min && maxIncome === inc.max;
+                      return (
+                        <button
+                          key={inc.label}
+                          type="button"
+                          onClick={() => { setMinIncome(inc.min); setMaxIncome(inc.max); }}
+                          style={{
+                            padding: "0.2rem 0.6rem",
+                            borderRadius: "9999px",
+                            border: isSel ? "1.5px solid #166534" : "1px solid #cbd5e1",
+                            background: isSel ? "#f0fdf4" : "#ffffff",
+                            color: isSel ? "#166534" : "#475569",
+                            fontSize: "0.75rem",
+                            fontWeight: isSel ? 700 : 500,
+                            cursor: "pointer",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          {inc.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "0.35rem" }}>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "0.85rem", fontWeight: 600 }}>₹</span>
+                    <Input
+                      type="number"
+                      placeholder="Min Income (e.g. 500000)"
+                      value={minIncome}
+                      onChange={(e) => setMinIncome(e.target.value ? Number(e.target.value) : "")}
+                      style={{ paddingLeft: "2rem", background: "#ffffff" }}
+                    />
+                  </div>
+                  <span style={{ color: "#94a3b8", fontSize: "0.85rem", fontWeight: 600 }}>to</span>
+                  <div style={{ position: "relative", flex: 1 }}>
+                    <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "0.85rem", fontWeight: 600 }}>₹</span>
+                    <Input
+                      type="number"
+                      placeholder="Max Income (e.g. 2000000)"
+                      value={maxIncome}
+                      onChange={(e) => setMaxIncome(e.target.value ? Number(e.target.value) : "")}
+                      style={{ paddingLeft: "2rem", background: "#ffffff" }}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Notice matching discover.dart */}
-        
-
-            {/* Action Buttons matching discover.dart */}
-            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap", paddingTop: "0.25rem" }}>
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", paddingTop: "0.75rem", borderTop: "1px solid #f1f5f9" }}>
               <Button
                 variant="primary"
-                onClick={() => setShowFilters(false)}
-                style={{ borderRadius: "9999px", padding: "0.6rem 1.5rem" }}
+                onClick={applyFilters}
+                style={{
+                  borderRadius: "9999px",
+                  padding: "0.75rem 2.25rem",
+                  fontSize: "0.95rem",
+                  fontWeight: 700,
+                  background: "#991b1b",
+                  color: "#ffffff",
+                  boxShadow: "0 4px 14px rgba(153, 27, 27, 0.3)",
+                }}
               >
-                Show {filteredItems.length} introductions
+                Apply Filters
               </Button>
-              <Button variant="ghost" onClick={resetFilters} style={{ color: "#64748b" }}>
-                Reset these filters
+              <Button
+                variant="ghost"
+                onClick={resetFilters}
+                style={{ color: "#ef4444", fontWeight: 600, fontSize: "0.875rem" }}
+              >
+                Reset Filters
               </Button>
             </div>
           </div>

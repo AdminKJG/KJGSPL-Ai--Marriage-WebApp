@@ -18,6 +18,11 @@ export interface MatrimonialDiscoveryCardProps {
   isMatched?: boolean;
 }
 
+function formatTag(str: string): string {
+  const clean = str.replace(/^(interest_|value_|lifestyle_)/i, "").replace(/_/g, " ");
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+}
+
 export function MatrimonialDiscoveryCard({
   profile: p,
   onSendInterest,
@@ -43,10 +48,10 @@ export function MatrimonialDiscoveryCard({
   const values = p.values ?? [];
 
   const intentionText = p.intention
-    ? p.intention.length > 22
-      ? p.intention.slice(0, 22) + "..."
-      : p.intention
-    : "LONG-TERM BOND";
+    ? p.intention.length > 18
+      ? "SERIOUS RELATIONSHIP"
+      : p.intention.toUpperCase()
+    : "SERIOUS MATCH";
 
   return (
     <>
@@ -55,90 +60,28 @@ export function MatrimonialDiscoveryCard({
         style={{
           position: "relative",
           background: "#ffffff",
-          borderRadius: "1.75rem",
+          borderRadius: "1.5rem",
           border: "2px solid #ea580c",
           boxShadow:
-            "0 30px 64px -10px rgba(234, 88, 12, 0.55), 0 14px 32px -4px rgba(194, 65, 12, 0.35), 0 0 0 1.5px rgba(234, 88, 12, 0.2)",
-          marginTop: "4.5rem",
-          padding: "4.25rem 1.35rem 1.35rem",
+            "0 20px 48px -10px rgba(234, 88, 12, 0.45), 0 10px 24px -4px rgba(194, 65, 12, 0.25), 0 0 0 1.5px rgba(234, 88, 12, 0.15)",
+          marginTop: "3.25rem",
+          padding: "3.5rem 1.15rem 1rem",
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          gap: "0.95rem",
+          gap: "0.65rem",
         }}
       >
-        {/* Pass (Skip) Button on Top Right */}
-        {onPass && (
-          <button
-            type="button"
-            onClick={() => onPass(p.id)}
-            style={{
-              position: "absolute",
-              top: "12px",
-              right: "12px",
-              background: "#f1f5f9",
-              border: "none",
-              borderRadius: "50%",
-              width: "1.85rem",
-              height: "1.85rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "#94a3b8",
-              fontWeight: 700,
-              fontSize: "0.75rem",
-              zIndex: 15,
-            }}
-            title="Pass for today (/v1/discovery/pass)"
-          >
-            ✕
-          </button>
-        )}
-
-        {/* Block Button on Top Left */}
-        {onBlock && (
-          <button
-            type="button"
-            onClick={() => {
-              if (confirm(`Block ${displayName} permanently?`)) {
-                onBlock(p.id);
-              }
-            }}
-            style={{
-              position: "absolute",
-              top: "12px",
-              left: "12px",
-              background: "#fef2f2",
-              border: "none",
-              borderRadius: "50%",
-              width: "1.85rem",
-              height: "1.85rem",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              color: "#ef4444",
-              fontWeight: 700,
-              fontSize: "0.75rem",
-              zIndex: 15,
-            }}
-            title="Block Member (/v1/block)"
-          >
-            🚫
-          </button>
-        )}
-
         {/* 1. TOP FLORAL GOLD FRAME AVATAR */}
         <div
           style={{
             position: "absolute",
-            top: "-74px",
+            top: "-64px",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 10,
-            width: "148px",
-            height: "148px",
+            width: "128px",
+            height: "128px",
           }}
         >
           <div style={{ position: "relative", width: "100%", height: "100%" }}>
@@ -153,20 +96,20 @@ export function MatrimonialDiscoveryCard({
             <div
               style={{
                 position: "absolute",
-                bottom: "6px",
-                right: "6px",
-                width: "32px",
-                height: "32px",
+                bottom: "4px",
+                right: "4px",
+                width: "28px",
+                height: "28px",
                 borderRadius: "50%",
                 background: "linear-gradient(135deg, #ea580c, #c2410c)",
                 color: "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "0.8rem",
+                fontSize: "0.75rem",
                 fontWeight: 800,
-                border: "2.5px solid #ffffff",
-                boxShadow: "0 2px 10px rgba(0,0,0,0.25)",
+                border: "2px solid #ffffff",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
                 zIndex: 12,
               }}
             >
@@ -175,82 +118,52 @@ export function MatrimonialDiscoveryCard({
           </div>
         </div>
 
-        {/* 2. TOP PILLS ROW (Intention & % Emotional Sync Clickable Pill) */}
+        {/* 2. TOP PILL (% Emotional Sync Clickable Pill) */}
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent: "center",
             alignItems: "center",
-            gap: "0.45rem",
-            marginTop: "0.35rem",
+            marginTop: "0.85rem",
           }}
         >
-          {/* Left Pill */}
-          <div
-            style={{
-              flex: 1.1,
-              minWidth: 0,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "0.35rem 0.5rem",
-              borderRadius: "9999px",
-              background: "#fff7ed",
-              border: "1.5px solid #fed7aa",
-              color: "#c2410c",
-              fontSize: "0.68rem",
-              fontWeight: 800,
-              letterSpacing: "0.02em",
-              textTransform: "uppercase",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-            title={p.intention || p.city || "Long-Term Bond"}
-          >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {intentionText}
-            </span>
-          </div>
-
-          {/* Right Pill: % Emotional Sync (Clicking opens /v1/profiles/:id/compatibility breakdown modal) */}
           <button
+          
             type="button"
             onClick={() => setShowCompatibility(true)}
             style={{
-              flex: 0.9,
-              minWidth: 0,
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: "0.2rem",
-              padding: "0.35rem 0.5rem",
+              gap: "0.25rem",
+              padding: "0.32rem 0.75rem",
               borderRadius: "9999px",
               background: "#ecfdf5",
               border: "1.5px solid #d1fae5",
               color: "#059669",
-              fontSize: "0.72rem",
+              fontSize: "0.75rem",
               fontWeight: 700,
               whiteSpace: "nowrap",
               cursor: "pointer",
+              boxShadow: "0 1px 3px rgba(5, 150, 105, 0.1)",
             }}
             title="Click to view 5-category compatibility breakdown (/v1/profiles/:id/compatibility)"
           >
-            <SparklesIcon size={11} />
+            <SparklesIcon size={12} />
             <span>{matchScore}% Sync</span>
           </button>
         </div>
 
         {/* 3. MAIN TITLE & SUBTITLE */}
-        <div style={{ textAlign: "center", margin: "0.2rem 0" }}>
+        <div style={{ textAlign: "center", margin: "0.1rem 0" }}>
           <h3
             style={{
               margin: 0,
-              fontSize: "1.5rem",
+              fontSize: "1.35rem",
               fontFamily: "var(--font-serif, Georgia, serif)",
               fontWeight: 700,
               color: "#1c1917",
-              lineHeight: 1.25,
+              lineHeight: 1.2,
               letterSpacing: "-0.01em",
             }}
           >
@@ -258,11 +171,11 @@ export function MatrimonialDiscoveryCard({
           </h3>
           <p
             style={{
-              margin: "0.25rem 0 0",
-              fontSize: "0.84rem",
+              margin: "0.15rem 0 0",
+              fontSize: "0.8rem",
               fontStyle: "italic",
               color: "#78716c",
-              lineHeight: 1.35,
+              lineHeight: 1.3,
             }}
           >
             {p.occupation ? `${p.occupation} • ` : ""}
@@ -275,34 +188,27 @@ export function MatrimonialDiscoveryCard({
           style={{
             background: "#ffffff",
             border: "1.5px solid #f4ede4",
-            borderLeft: "4px solid #ea580c",
-            borderRadius: "0.85rem",
-            padding: "0.85rem 1rem",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
+            borderLeft: "3.5px solid #ea580c",
+            borderRadius: "0.75rem",
+            padding: "0.65rem 0.85rem",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.02)",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.78rem", fontWeight: 700, color: "#1c1917" }}>
-            <span style={{ color: "#10b981", fontSize: "0.65rem" }}>●</span>
-            <span>{displayName}</span>
-            <span style={{ color: "#78716c", fontWeight: 400, fontSize: "0.74rem" }}>
-              ({p.city || "India"} • {p.age ? `${p.age} Yrs` : "Member"})
-            </span>
-          </div>
           <p
             style={{
-              margin: "0.35rem 0 0",
+              margin: 0,
               fontSize: "0.78rem",
               fontStyle: "italic",
               color: "#57534e",
-              lineHeight: 1.4,
+              lineHeight: 1.35,
             }}
           >
-            "{p.bio ? (p.bio.length > 110 ? p.bio.slice(0, 110) + "..." : p.bio) : "Looking for a meaningful relationship built on emotional safety, open communication, and shared growth."}"
+            "{p.bio ? (p.bio.length > 95 ? p.bio.slice(0, 95) + "..." : p.bio) : "Looking for a meaningful relationship built on emotional safety, open communication, and shared growth."}"
           </p>
 
           {/* Value / Interest tags inside story box */}
           {(values.length > 0 || interests.length > 0) && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.35rem", marginTop: "0.55rem" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem", marginTop: "0.45rem" }}>
               {values.slice(0, 2).map((v) => (
                 <span
                   key={v}
@@ -310,13 +216,13 @@ export function MatrimonialDiscoveryCard({
                     background: "#fff7ed",
                     border: "1px solid #fed7aa",
                     color: "#9a3412",
-                    padding: "0.15rem 0.5rem",
+                    padding: "0.12rem 0.45rem",
                     borderRadius: "9999px",
-                    fontSize: "0.68rem",
+                    fontSize: "0.65rem",
                     fontWeight: 600,
                   }}
                 >
-                  ✦ {v}
+                  ✦ {formatTag(v)}
                 </span>
               ))}
               {interests.slice(0, 2).map((tag) => (
@@ -326,13 +232,13 @@ export function MatrimonialDiscoveryCard({
                     background: "#f8fafc",
                     border: "1px solid #e2e8f0",
                     color: "#475569",
-                    padding: "0.15rem 0.5rem",
+                    padding: "0.12rem 0.45rem",
                     borderRadius: "9999px",
-                    fontSize: "0.68rem",
+                    fontSize: "0.65rem",
                     fontWeight: 500,
                   }}
                 >
-                  {tag}
+                  {formatTag(tag)}
                 </span>
               ))}
             </div>

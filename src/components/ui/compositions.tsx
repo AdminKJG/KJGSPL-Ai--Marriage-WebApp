@@ -75,6 +75,7 @@ export const Field = forwardRef<HTMLInputElement, FieldProps>(
               position: "absolute",
               right: "0.625rem",
               top: "50%",
+              borderRadius:"100%",
               transform: "translateY(-50%)",
               display: "inline-flex",
               alignItems: "center",

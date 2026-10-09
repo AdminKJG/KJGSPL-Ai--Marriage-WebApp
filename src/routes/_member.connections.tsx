@@ -393,25 +393,6 @@ function ConnectionsPage() {
           />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-          <span style={{ fontSize: "0.85rem", color: "#64748b", fontWeight: 500 }}>Min Compatibility:</span>
-          <button
-            type="button"
-            onClick={() => setMinAlignment(minAlignment === 85 ? 0 : 85)}
-            style={{
-              padding: "0.4rem 0.8rem",
-              borderRadius: "8px",
-              border: minAlignment === 85 ? "1.5px solid #16a34a" : "1px solid #cbd5e1",
-              background: minAlignment === 85 ? "#f0fdf4" : "#ffffff",
-              color: minAlignment === 85 ? "#15803d" : "#475569",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            {minAlignment === 85 ? "✓ 85%+ High Match" : "All Alignment %"}
-          </button>
-        </div>
       </div>
 
       {/* Loading state */}
