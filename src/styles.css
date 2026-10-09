@@ -1851,7 +1851,7 @@ body {
 .app-sidebar__brand-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   width: 100%;
   text-decoration: none;
   color: inherit;

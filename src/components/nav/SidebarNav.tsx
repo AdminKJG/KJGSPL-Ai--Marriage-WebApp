@@ -51,9 +51,9 @@ export function SidebarNav({ user, unread, onSignOut, isOpen = false, onClose }:
         <div className="app-sidebar__header">
           <Link to="/discover" className="app-sidebar__brand-link" onClick={onClose}>
             <img src="/assets/ai_marriage_logo.png" alt="AI Marriage Logo" className="app-sidebar__logo-img" />
-            <div className="app-sidebar__brand-title">
+            {/* <div className="app-sidebar__brand-title">
               <span style={{ color: "#e11d48", fontWeight: 800 }}>AI</span> Marriage
-            </div>
+            </div> */}
           </Link>
           {onClose && (
             <button type="button" className="app-sidebar__close-btn" onClick={onClose} aria-label="Close Sidebar">

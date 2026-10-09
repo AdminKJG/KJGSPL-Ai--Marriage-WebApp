@@ -639,13 +639,13 @@ function DiscoverPage() {
                 <Label htmlFor="filter-city" style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155" }}>
                   📍 CITY / LOCATION
                 </Label>
-                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
                   <Input
                     id="filter-city"
                     placeholder="Search city (e.g. Mumbai, Delhi, Bangalore)..."
                     value={cityFilter === "All cities" ? "" : cityFilter}
                     onChange={handleCityChange}
-                    style={{ paddingRight: "2.25rem", background: "#ffffff" }}
+                    style={{ paddingRight: "2.25rem", background: "#ffffff", width: "100%" }}
                   />
                   {activeCity && (
                     <button
@@ -669,47 +669,49 @@ function DiscoverPage() {
                       ✕
                     </button>
                   )}
-                </div>
 
-                {citySuggestions.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      zIndex: 50,
-                      background: "#ffffff",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "0.5rem",
-                      boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
-                      maxHeight: "160px",
-                      overflowY: "auto",
-                    }}
-                  >
-                    {citySuggestions.map((c) => (
-                      <button
-                        key={c}
-                        type="button"
-                        onClick={() => {
-                          setCityFilter(c.split(",")[0]);
-                          setCitySuggestions([]);
-                        }}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "0.5rem 0.75rem",
-                          border: "none",
-                          background: "transparent",
-                          cursor: "pointer",
-                          fontSize: "0.85rem",
-                        }}
-                      >
-                        📍 {c}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  {citySuggestions.length > 0 && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "0.5rem",
+                        boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1)",
+                        maxHeight: "160px",
+                        overflowY: "auto",
+                        marginTop: "0.25rem"
+                      }}
+                    >
+                      {citySuggestions.map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setCityFilter(c.split(",")[0]);
+                            setCitySuggestions([]);
+                          }}
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "0.5rem 0.75rem",
+                            border: "none",
+                            borderBottom: "1px solid #f1f5f9",
+                            background: "transparent",
+                            cursor: "pointer",
+                            fontSize: "0.85rem",
+                          }}
+                        >
+                          📍 {c}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 3. Education Searchable Dropdown */}

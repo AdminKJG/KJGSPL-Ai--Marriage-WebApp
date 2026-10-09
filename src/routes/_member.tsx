@@ -297,7 +297,7 @@ function MemberLayout() {
               </svg>
             </button>
             <div style={{ fontSize: "0.95rem", color: "#4b5563", fontWeight: 500, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span>Welcome back,</span>
+              <span>Welcome,</span>
               <span style={{ color: "#111827", fontWeight: 700 }}>
                 {me?.name || me?.firstName || session.data?.user?.name || "Member"}
               </span>
