@@ -498,7 +498,14 @@ function Gallery() {
           {photos.map((p) => (
             <div key={p.id} className="stack-2">
               <div className="photo">
-                <img src={photoUrl(p.url) ?? ""} alt={`Profile photo ${p.slot}`} />
+                <img 
+                  src={photoUrl(p.url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(data?.name || "Member")}&background=f1f5f9&color=94a3b8&size=512`} 
+                  alt={`Profile photo ${p.slot}`} 
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data?.name || "Member")}&background=f1f5f9&color=94a3b8&size=512`;
+                  }}
+                />
               </div>
               <div className="row-2 wrap">
                 {p.isMain ? <Badge variant="ink">Main</Badge> : null}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { api } from "@/lib/api/client";
 
 export interface DropdownItem {
   title: string;
@@ -66,17 +67,14 @@ export function SearchableDropdown({
     if (endpoint) {
       const timer = setTimeout(async () => {
         try {
-          const res = await fetch(`${endpoint}?search=${encodeURIComponent(q)}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              const apiItems: DropdownItem[] = data.map((d: any) => ({
-                title: d.name || d.title || String(d),
-                subtitle: d.description || d.field || "",
-                value: d.name || d.title || String(d),
-              }));
-              setItems(apiItems);
-            }
+          const data: any = await api(`${endpoint}?search=${encodeURIComponent(q)}`, { method: "GET" });
+          if (Array.isArray(data) && data.length > 0) {
+            const apiItems: DropdownItem[] = data.map((d: any) => ({
+              title: d.name || d.title || String(d),
+              subtitle: d.description || d.field || "",
+              value: d.name || d.title || String(d),
+            }));
+            setItems(apiItems);
           }
         } catch {
           // Offline/404 fallback: keep local filtered list
