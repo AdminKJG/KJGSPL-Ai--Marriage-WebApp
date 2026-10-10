@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, Heading, Input, Label, Text, Textarea } from "@/components/ui";
 import { ErrorState, LoadingState, PageHeader } from "@/components/ui";
 import { connectionsQuery, qk, storyApi, storyQuery, voiceApi } from "@/lib/api/modules";
+import { convertToWavBase64 } from "@/lib/audioUtils";
 import type { DatePlan, StoryAnswer } from "@/lib/api/types";
 
 export const Route = createFileRoute("/_member/story")({
@@ -141,27 +142,21 @@ function QuestionCard({ q, answer, version }: { q: Question; answer?: StoryAnswe
       recorder.onstop = async () => {
         setTranscribing(true);
         try {
-          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/wav" });
-          const reader = new FileReader();
-          reader.readAsDataURL(audioBlob);
-          reader.onloadend = async () => {
-            const base64 = (reader.result as string).split(",")[1];
-            try {
-              const res = await voiceApi.transcribe(base64);
-              if (res?.text) {
-                setTranscript((prev) => (prev ? `${prev} ${res.text}` : res.text));
-                setVoiceNotice("Audio transcribed successfully!");
-              }
-            } catch {
-              setVoiceNotice("Speech transcription microservice is offline or processing. You can type directly.");
-            } finally {
-              setTranscribing(false);
-            }
-          };
-        } catch {
+          const rawBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType });
+          const base64 = await convertToWavBase64(rawBlob);
+          const res = await voiceApi.transcribe(base64);
+          if (res?.text) {
+            setTranscript((prev) => (prev ? `${prev} ${res.text}` : res.text));
+            setVoiceNotice("Audio transcribed successfully!");
+          }
+        } catch (e) {
+          console.error(e);
+          setVoiceNotice("Transcription failed. Ensure recording is 0.4-60 seconds or type directly.");
+        } finally {
           setTranscribing(false);
         }
       };
+
 
       recorder.start();
       setIsRecording(true);

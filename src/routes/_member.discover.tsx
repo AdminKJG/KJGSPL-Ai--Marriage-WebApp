@@ -739,7 +739,7 @@ function DiscoverPage() {
               </div>
 
               {/* 5. Annual Income Range (Full Width) */}
-              <div className="stack-2" style={{ gridColumn: "span 1 / -1", background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
+              <div className="stack-2" style={{ gridColumn: "1 / -1", background: "#f8fafc", padding: "1.25rem 1.5rem", borderRadius: "0.85rem", border: "1px solid #e2e8f0" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" }}>
                   <Label style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155" }}>
                     💰 ANNUAL INCOME RANGE (₹ RUPEES)
@@ -779,7 +779,9 @@ function DiscoverPage() {
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "0.35rem" }}>
+                <DualRangeSlider minIncome={minIncome} maxIncome={maxIncome} setMinIncome={setMinIncome} setMaxIncome={setMaxIncome} />
+
+                <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginTop: "1rem" }}>
                   <div style={{ position: "relative", flex: 1 }}>
                     <span style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "0.85rem", fontWeight: 600 }}>₹</span>
                     <Input
@@ -1080,6 +1082,54 @@ function DiscoverSkeletonGrid({ count = 6 }: { count?: number }) {
           />
         </div>
       ))}
+    </div>
+  );
+}
+
+function DualRangeSlider({ minIncome, maxIncome, setMinIncome, setMaxIncome }: { minIncome: any, maxIncome: any, setMinIncome: any, setMaxIncome: any }) {
+  const min = 0;
+  const max = 10000000;
+  
+  const currentMin = typeof minIncome === "number" ? minIncome : min;
+  const currentMax = typeof maxIncome === "number" && maxIncome !== 0 ? maxIncome : max;
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "24px", display: "flex", alignItems: "center", marginTop: "1.25rem", marginBottom: "0.25rem" }}>
+      <div style={{ position: "absolute", left: 0, right: 0, height: "6px", backgroundColor: "#e2e8f0", borderRadius: "3px" }} />
+      <div style={{ 
+        position: "absolute", 
+        left: `${((currentMin - min) / (max - min)) * 100}%`, 
+        right: `${100 - ((currentMax - min) / (max - min)) * 100}%`, 
+        height: "6px", 
+        backgroundColor: "var(--rose-active)", 
+        borderRadius: "3px" 
+      }} />
+      <input 
+        type="range" 
+        min={min} 
+        max={max} 
+        step={100000}
+        value={currentMin} 
+        onChange={(e) => {
+           const val = Number(e.target.value);
+           if (val <= currentMax - 100000) setMinIncome(val === 0 ? "" : val);
+        }}
+        style={{ position: "absolute", width: "100%", appearance: "none", background: "transparent", pointerEvents: "none", zIndex: 3 }}
+        className="dual-slider-thumb"
+      />
+      <input 
+        type="range" 
+        min={min} 
+        max={max} 
+        step={100000}
+        value={currentMax} 
+        onChange={(e) => {
+           const val = Number(e.target.value);
+           if (val >= currentMin + 100000) setMaxIncome(val === max ? "" : val);
+        }}
+        style={{ position: "absolute", width: "100%", appearance: "none", background: "transparent", pointerEvents: "none", zIndex: 4 }}
+        className="dual-slider-thumb"
+      />
     </div>
   );
 }

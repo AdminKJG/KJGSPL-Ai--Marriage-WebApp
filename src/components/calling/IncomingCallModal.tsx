@@ -12,23 +12,36 @@ export function IncomingCallModal() {
 
   if (!incomingCall) return null;
 
+  // Log when call is received/displayed
+  console.log(`📞 [IncomingCall] ${incomingCall.kind === "VIDEO" ? "📹 VIDEO" : "🎙️ AUDIO"} call received`, {
+    callId: incomingCall.callId,
+    from: incomingCall.from ?? incomingCall.callerId,
+    kind: incomingCall.kind,
+    status: incomingCall.status,
+  });
+
   const isVideo = incomingCall.kind === "VIDEO";
 
   const handleAccept = async () => {
+    console.log(`✅ [IncomingCall] Accept button clicked — callId: ${incomingCall.callId}`);
     setIsAccepting(true);
     try {
       const res = await callsApi.accept(incomingCall.callId);
+      console.log("✅ [IncomingCall] REST accept success:", res);
       getSocket()?.emit("call:accept", { callId: incomingCall.callId });
+      console.log("📡 [IncomingCall] Socket emitted call:accept");
       dispatch(
         callAccepted({
           call: res.call,
-          url: res.call.url,
-          roomName: res.call.roomName,
-          token: res.call.token,
+          url: res.call?.url,
+          roomName: res.call?.roomName,
+          token: res.call?.token,
         })
       );
-    } catch {
-      // Fallback: accept locally with socket notification
+      console.log("🟢 [IncomingCall] Call accepted & ActiveCallModal should open now");
+    } catch (err: any) {
+      console.info("ℹ️ [IncomingCall] REST accept response (handling status/fallback):", err?.status || err);
+      // 409 Conflict means call was already accepted on backend or ringing period transitioned
       getSocket()?.emit("call:accept", { callId: incomingCall.callId });
       dispatch(callAccepted({ call: { ...incomingCall, status: "ACCEPTED" } }));
     } finally {
@@ -37,15 +50,20 @@ export function IncomingCallModal() {
   };
 
   const handleDecline = async () => {
+    console.log(`❌ [IncomingCall] Decline button clicked — callId: ${incomingCall.callId}`);
     setIsDeclining(true);
     try {
       await callsApi.decline(incomingCall.callId);
+      console.log("✅ [IncomingCall] REST decline success");
       getSocket()?.emit("call:reject", { callId: incomingCall.callId });
-    } catch {
+      console.log("📡 [IncomingCall] Socket emitted call:reject");
+    } catch (err) {
+      console.warn("⚠️ [IncomingCall] REST decline failed, using socket fallback:", err);
       getSocket()?.emit("call:reject", { callId: incomingCall.callId });
     } finally {
       setIsDeclining(false);
       dispatch(callRejected(incomingCall));
+      console.log("🔴 [IncomingCall] Call rejected — modal will close");
     }
   };
 

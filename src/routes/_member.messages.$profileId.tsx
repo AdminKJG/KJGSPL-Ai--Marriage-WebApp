@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useEffect, useRef, useState, type KeyboardEvent, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ChangeEvent, Fragment } from "react";
 import { Avatar, ErrorState, LoadingState } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
 import { aiApi, callsApi, chatApi, messagesQuery, profileQuery, conversationsQuery, qk } from "@/lib/api/modules";
@@ -93,7 +93,7 @@ function WhatsAppChatPage() {
   const [attachment, setAttachment] = useState<AttachmentState | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [isBotTyping, setIsBotTyping] = useState<boolean>(false);
-  const { showError } = useToast();
+  const { showError, showInfo } = useToast();
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<{ text: string }>({
     resolver: zodResolver(schema),
@@ -105,12 +105,17 @@ function WhatsAppChatPage() {
 
   const startCall = async (kind: "AUDIO" | "VIDEO") => {
     if (isBot) {
-      alert("This member is currently offline for direct calls. Continue chatting to plan a call!");
+      showInfo("This member is currently offline for direct calls. Continue chatting to plan a call!");
       return;
     }
     
+    setCallingKind(kind);
+    showInfo(`Initiating ${kind === "VIDEO" ? "Video" : "Audio"} Call...`, "Connecting Call");
+    console.log(`📞 [ChatPage] Call button clicked — kind: ${kind}, profileId: ${profileId}`);
+
     try {
       const res = await callsApi.initiate(profileId, kind);
+      console.log("✅ [ChatPage] Call initiated via REST:", res);
       getSocket()?.emit("call:ring", { targetUserId: profileId, ...res.call });
       dispatch(
         callAccepted({
@@ -121,8 +126,10 @@ function WhatsAppChatPage() {
         })
       );
     } catch (err: any) {
+      console.warn("⚠️ [ChatPage] REST call initiate failed, using local socket fallback:", err);
       if (err?.status === 409) {
-        alert(err.message || "One of you is already on a call.");
+        showError(err.message || "One of you is already on a call.", "Call Failed");
+        setCallingKind(null);
         return;
       }
       // Local fallback call session
@@ -201,11 +208,25 @@ function WhatsAppChatPage() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
     
-    // Mark messages as read
+    // Mark messages as read via socket (docs: mark_as_read event replaces REST POST /v1/chat/:id/read)
     if (messages && messages.length > 0 && conversationId) {
-      const unreadIds = messages.filter((m) => m.from === profileId).map((m) => m.id);
+      const unreadIds = messages
+        .filter((m) => m.from === profileId && !(m as any).read)
+        .map((m) => m.id)
+        .slice(-50); // max 50 per emit to avoid payload bloat
+
       if (unreadIds.length > 0) {
-        chatApi.readMessage(conversationId, unreadIds.slice(-5), isBot).catch(() => {});
+        const s = getSocket();
+        if (s?.connected) {
+          // 🆕 Use socket mark_as_read (docs: replaces REST, still works via REST too)
+          s.emit("mark_as_read", { conversationId, messageIds: unreadIds });
+          qc.invalidateQueries({ queryKey: qk.conversations });
+        } else {
+          // Fallback to REST if socket not connected
+          chatApi.readMessage(conversationId, unreadIds, isBot)
+            .then(() => qc.invalidateQueries({ queryKey: qk.conversations }))
+            .catch(() => {});
+        }
       }
     }
   }, [messages?.length, conversationId, profileId]);
@@ -357,28 +378,73 @@ function WhatsAppChatPage() {
         </div>
 
         <div className="whatsapp-chat-header-actions">
-          <button
-            type="button"
-            className="whatsapp-header-btn"
-            onClick={() => startCall("AUDIO")}
-            title="Start Audio Call"
-            aria-label="Start Audio Call"
-            disabled={callingKind !== null}
-            style={{ opacity: callingKind === "AUDIO" ? 0.5 : 1 }}
-          >
-            <PhoneIcon size={20} />
-          </button>
-          <button
-            type="button"
-            className="whatsapp-header-btn"
-            onClick={() => startCall("VIDEO")}
-            title="Start Video Call"
-            aria-label="Start Video Call"
-            disabled={callingKind !== null}
-            style={{ opacity: callingKind === "VIDEO" ? 0.5 : 1 }}
-          >
-            <VideoIcon size={20} />
-          </button>
+          {!isBot && (
+            <>
+              <button
+                type="button"
+                className={`whatsapp-header-btn ${callingKind === "AUDIO" ? "calling-active" : ""}`}
+                onClick={() => startCall("AUDIO")}
+                title="Start Audio Call"
+                aria-label="Start Audio Call"
+                disabled={callingKind !== null}
+                style={{
+                  position: "relative",
+                  opacity: callingKind !== null && callingKind !== "AUDIO" ? 0.4 : 1,
+                  background: callingKind === "AUDIO" ? "rgba(16, 185, 129, 0.2)" : undefined,
+                  borderColor: callingKind === "AUDIO" ? "#10b981" : undefined,
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {callingKind === "AUDIO" ? (
+                  <span
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "50%",
+                      border: "2px solid #10b981",
+                      borderTopColor: "transparent",
+                      display: "inline-block",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                ) : (
+                  <PhoneIcon size={20} />
+                )}
+              </button>
+
+              <button
+                type="button"
+                className={`whatsapp-header-btn ${callingKind === "VIDEO" ? "calling-active" : ""}`}
+                onClick={() => startCall("VIDEO")}
+                title="Start Video Call"
+                aria-label="Start Video Call"
+                disabled={callingKind !== null}
+                style={{
+                  position: "relative",
+                  opacity: callingKind !== null && callingKind !== "VIDEO" ? 0.4 : 1,
+                  background: callingKind === "VIDEO" ? "rgba(244, 63, 94, 0.2)" : undefined,
+                  borderColor: callingKind === "VIDEO" ? "#f43f5e" : undefined,
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {callingKind === "VIDEO" ? (
+                  <span
+                    style={{
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "50%",
+                      border: "2px solid #f43f5e",
+                      borderTopColor: "transparent",
+                      display: "inline-block",
+                      animation: "spin 0.8s linear infinite",
+                    }}
+                  />
+                ) : (
+                  <VideoIcon size={20} />
+                )}
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -393,29 +459,57 @@ function WhatsAppChatPage() {
           </div>
         )}
 
-        {messages && messages.length > 0 && (
-          <div className="whatsapp-date-pill">
-            Today
-          </div>
-        )}
-
-        {messages?.map((m) => {
+        {messages?.map((m, index) => {
           const isMe = m.from === "me";
-          const formattedTime = new Date(m.createdAt).toLocaleTimeString([], {
+          const messageDate = new Date(m.createdAt);
+          const formattedTime = messageDate.toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           });
 
+          let showDatePill = false;
+          let dateLabel = "";
+          
+          if (index === 0) {
+            showDatePill = true;
+          } else {
+            const prevMessageDate = new Date(messages[index - 1].createdAt);
+            if (messageDate.toLocaleDateString('en-CA') !== prevMessageDate.toLocaleDateString('en-CA')) {
+               showDatePill = true;
+            }
+          }
+          
+          if (showDatePill) {
+              const today = new Date();
+              const yesterday = new Date();
+              yesterday.setDate(yesterday.getDate() - 1);
+              
+              const mDateStr = messageDate.toLocaleDateString('en-CA');
+              const todayStr = today.toLocaleDateString('en-CA');
+              const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+              
+              if (mDateStr === todayStr) dateLabel = "Today";
+              else if (mDateStr === yesterdayStr) dateLabel = "Yesterday";
+              else dateLabel = messageDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+          }
+
           // If message is call event log
           if (m.text?.toLowerCase().includes("call")) {
             return (
-              <div key={m.id} className="whatsapp-bubble whatsapp-bubble--call">
-                <PhoneIcon size={18} style={{ color: "var(--rose, #e11d48)" }} />
-                <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>{m.text}</span>
-                <span className="whatsapp-bubble-footer" style={{ marginTop: 0 }}>
-                  {formattedTime}
-                </span>
-              </div>
+              <Fragment key={m.id}>
+                {showDatePill && (
+                  <div className="whatsapp-date-pill">
+                    {dateLabel}
+                  </div>
+                )}
+                <div className="whatsapp-bubble whatsapp-bubble--call">
+                  <PhoneIcon size={18} style={{ color: "var(--rose, #e11d48)" }} />
+                  <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>{m.text}</span>
+                  <span className="whatsapp-bubble-footer" style={{ marginTop: 0 }}>
+                    {formattedTime}
+                  </span>
+                </div>
+              </Fragment>
             );
           }
 
@@ -430,12 +524,17 @@ function WhatsAppChatPage() {
               : false;
 
           return (
-            <div
-              key={m.id}
-              className={`whatsapp-bubble ${
-                isMe ? "whatsapp-bubble--outgoing" : "whatsapp-bubble--incoming"
-              }`}
-            >
+            <Fragment key={m.id}>
+              {showDatePill && (
+                <div className="whatsapp-date-pill">
+                  {dateLabel}
+                </div>
+              )}
+              <div
+                className={`whatsapp-bubble ${
+                  isMe ? "whatsapp-bubble--outgoing" : "whatsapp-bubble--incoming"
+                }`}
+              >
               {/* Image attachment rendering */}
               {isImage && m.mediaUrl && (
                 <div
@@ -478,6 +577,7 @@ function WhatsAppChatPage() {
                 )}
               </div>
             </div>
+            </Fragment>
           );
         })}
 

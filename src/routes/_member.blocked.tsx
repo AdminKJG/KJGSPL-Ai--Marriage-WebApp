@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Avatar, Badge, Button, Card, ErrorState, Heading, PageHeader, Text } from "@/components/ui";
 import { meQuery, profileApi, qk } from "@/lib/api/modules";
 
@@ -45,14 +45,18 @@ function BlockedMembersPage() {
     },
   });
 
-  const blockedList = useMemo(() => {
-    return me.data?.blocked ?? me.data?.blockedUsers ?? [];
+  const blockedList: any[] = useMemo(() => {
+    return (me.data as any)?.blockedProfiles ?? [];
   }, [me.data]);
+
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: qk.me });
+  }, [qc]);
 
   const filteredList = useMemo(() => {
     if (!searchQuery.trim()) return blockedList;
     const q = searchQuery.toLowerCase().trim();
-    return blockedList.filter((b) => {
+    return blockedList.filter((b: any) => {
       const name = b.name?.toLowerCase() || "";
       const city = b.city?.toLowerCase() || "";
       const occupation = b.occupation?.toLowerCase() || "";
@@ -173,7 +177,7 @@ function BlockedMembersPage() {
 
       {!me.isLoading && !me.error && filteredList.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: "1rem" }}>
-          {filteredList.map((b) => {
+          {filteredList.map((b: any) => {
             const meta = [b.age ? `${b.age} yrs` : null, b.city, b.occupation].filter(Boolean).join(" · ");
 
             return (

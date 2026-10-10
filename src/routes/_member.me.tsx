@@ -457,6 +457,7 @@ function Gallery() {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const { data } = useQuery(galleryQuery());
+  const { data: me } = useQuery(meQuery());
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.gallery });
   const upload = useMutation({ mutationFn: mediaApi.upload, onSuccess: invalidate });
   const remove = useMutation({ mutationFn: mediaApi.remove, onSuccess: invalidate });
@@ -497,29 +498,57 @@ function Gallery() {
         <div className="grid-cards">
           {photos.map((p) => (
             <div key={p.id} className="stack-2">
-              <div className="photo">
+              <div 
+                style={{ 
+                  position: "relative", 
+                  width: "150px", 
+                  height: "200px", 
+                  borderRadius: "12px", 
+                  overflow: "hidden", 
+                  marginBottom: "0.5rem", 
+                  border: "1px solid var(--border)",
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.05)"
+                }}
+              >
                 <img 
-                  src={photoUrl(p.url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(data?.name || "Member")}&background=f1f5f9&color=94a3b8&size=512`} 
-                  alt={`Profile photo ${p.slot}`} 
+                  src={photoUrl(p.url) || `https://ui-avatars.com/api/?name=${encodeURIComponent(me?.name || "Member")}&background=f1f5f9&color=94a3b8&size=512`} 
+                  alt={`Profile photo ${p.slot}`}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", backgroundColor: "transparent" }}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
-                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(data?.name || "Member")}&background=f1f5f9&color=94a3b8&size=512`;
+                    e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(me?.name || "Member")}&background=f1f5f9&color=94a3b8&size=512`;
                   }}
                 />
-              </div>
-              <div className="row-2 wrap">
-                {p.isMain ? <Badge variant="ink">Main</Badge> : null}
-                <Badge variant={p.isApproved ? "rose" : "outline"}>{p.moderationStatus.toLowerCase()}</Badge>
-              </div>
-              <div className="row-2 wrap">
-                {!p.isMain && (
-                  <Button size="sm" variant="ghost" onClick={() => setMain.mutate(p.id)}>
-                    Make main
-                  </Button>
-                )}
-                <Button size="sm" variant="ghost" onClick={() => remove.mutate(p.id)}>
-                  Remove
-                </Button>
+                
+                {/* Badges Overlay (Top Left) */}
+                <div style={{ position: "absolute", top: "8px", left: "8px", display: "flex", gap: "4px", flexWrap: "wrap", maxWidth: "134px" }}>
+                  {p.isMain ? <span style={{ background: "var(--ink)", color: "var(--surface)", fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>MAIN</span> : null}
+                  <span style={{ background: "rgba(255,255,255,0.95)", color: p.isApproved ? "var(--rose-active)" : "var(--muted-foreground)", fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px", fontWeight: 600, border: "1px solid var(--border)" }}>
+                    {p.moderationStatus.toUpperCase()}
+                  </span>
+                </div>
+                
+                {/* Action Buttons Overlay (Bottom Right) */}
+                <div style={{ position: "absolute", bottom: "8px", right: "8px", display: "flex", gap: "6px" }}>
+                  {!p.isMain && (
+                    <button 
+                      title="Make Main Profile Photo"
+                      type="button"
+                      onClick={() => setMain.mutate(p.id)}
+                      style={{ background: "rgba(255,255,255,0.95)", border: "1px solid var(--border)", borderRadius: "50%", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--ink)", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", fontSize: "0.8rem" }}
+                    >
+                      ⭐
+                    </button>
+                  )}
+                  <button 
+                    title="Remove Photo"
+                    type="button"
+                    onClick={() => remove.mutate(p.id)}
+                    style={{ background: "rgba(255,255,255,0.95)", border: "1px solid var(--border)", borderRadius: "50%", width: "28px", height: "28px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--rose)", boxShadow: "0 2px 4px rgba(0,0,0,0.1)", fontSize: "0.8rem" }}
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
             </div>
           ))}

@@ -16,6 +16,13 @@ export function NotificationSidebar() {
   const { data, isLoading, error } = useQuery(notificationsQuery());
   const invalidate = () => qc.invalidateQueries({ queryKey: qk.notifications });
 
+  // Fetch fresh notifications when the drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      invalidate();
+    }
+  }, [isOpen]);
+
   // Close on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

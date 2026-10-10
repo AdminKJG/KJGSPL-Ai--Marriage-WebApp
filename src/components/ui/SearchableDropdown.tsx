@@ -48,6 +48,8 @@ export function SearchableDropdown({
 
   // Filter options or probe endpoint if specified
   useEffect(() => {
+    if (!isOpen) return;
+
     if (!query || query.trim() === "") {
       setItems(options);
       return;
@@ -82,7 +84,7 @@ export function SearchableDropdown({
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [query, options, endpoint]);
+  }, [query, options, endpoint, isOpen]);
 
   return (
     <div className="ds-field" ref={containerRef} style={{ position: "relative" }}>

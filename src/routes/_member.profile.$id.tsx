@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Badge, Button, Card, Heading, Label, Text, Textarea } from "@/components/ui";
 import { Avatar, ErrorState, LoadingState, TagList } from "@/components/ui";
+import { useToast } from "@/components/ui/Toast";
 import { callsApi, compatibilityQuery, connectionsQuery, profileApi, profileQuery, qk } from "@/lib/api/modules";
 import { getSocket } from "@/lib/socket";
 import { callAccepted, useAppDispatch } from "@/store";
@@ -276,27 +277,34 @@ function ProfilePage() {
   const compat = useQuery(compatibilityQuery(id));
   const connections = useQuery(connectionsQuery());
 
-  const [isCalling, setIsCalling] = useState(false);
+  const { showError, showInfo } = useToast();
+  const [callingKind, setCallingKind] = useState<"AUDIO" | "VIDEO" | null>(null);
   const [interestSentLocally, setInterestSentLocally] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState("");
 
-  const startCall = async () => {
-    setIsCalling(true);
+  const startCall = async (kind: "AUDIO" | "VIDEO" = "AUDIO") => {
+    setCallingKind(kind);
+    showInfo(`Initiating ${kind === "VIDEO" ? "Video" : "Audio"} Call...`, "Connecting Call");
+    console.log(`📞 [ProfilePage] Initiating ${kind} call to user ${id}`);
+
     try {
-      const res = await callsApi.initiate(id, "AUDIO");
+      const res = await callsApi.initiate(id, kind);
+      console.log("✅ [ProfilePage] Call initiated via REST:", res);
       getSocket()?.emit("call:ring", { targetUserId: id, ...res.call });
       dispatch(callAccepted({ call: res.call, url: res.call.url, roomName: res.call.roomName, token: res.call.token }));
     } catch (err: any) {
+      console.warn("⚠️ [ProfilePage] REST call initiate failed, using local socket fallback:", err);
       if (err?.status === 409) {
-        alert(err.message || "One of you is already on a call.");
+        showError(err.message || "One of you is already on a call.", "Call Failed");
+        setCallingKind(null);
         return;
       }
-      getSocket()?.emit("call:ring", { targetUserId: id, kind: "AUDIO" });
-      dispatch(callAccepted({ call: { callId: `call_${Date.now()}`, callerId: "me", calleeId: id, kind: "AUDIO", status: "ACCEPTED" } }));
+      getSocket()?.emit("call:ring", { targetUserId: id, kind });
+      dispatch(callAccepted({ call: { callId: `call_${Date.now()}`, callerId: "me", calleeId: id, kind, status: "ACCEPTED" } }));
     } finally {
-      setIsCalling(false);
+      setCallingKind(null);
     }
   };
 
@@ -381,8 +389,21 @@ function ProfilePage() {
               <Button variant="outline" onClick={() => navigate({ to: "/messages/$profileId", params: { profileId: id } })}>
                 💬 Message
               </Button>
-              <Button variant="outline" onClick={startCall} loading={isCalling} disabled={isCalling}>
-                📞 Call
+              <Button
+                variant="outline"
+                onClick={() => startCall("AUDIO")}
+                loading={callingKind === "AUDIO"}
+                disabled={callingKind !== null}
+              >
+                📞 Audio Call
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => startCall("VIDEO")}
+                loading={callingKind === "VIDEO"}
+                disabled={callingKind !== null}
+              >
+                📹 Video Call
               </Button>
             </>
           ) : isSent ? (
@@ -447,19 +468,6 @@ function ProfilePage() {
           <div className="stack-4">
             <div className="row-2 between wrap">
               <Heading level="h3">Compatibility Matrix</Heading>
-              {compat.data?.eligibility && (
-                <Badge
-                  variant={
-                    compat.data.eligibility === "PASS"
-                      ? "rose"
-                      : compat.data.eligibility === "FAIL"
-                      ? "outline"
-                      : "default"
-                  }
-                >
-                  Status: {compat.data.eligibility}
-                </Badge>
-              )}
             </div>
 
             {compat.isLoading && <LoadingState />}

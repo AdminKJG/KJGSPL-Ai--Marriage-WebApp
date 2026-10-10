@@ -743,17 +743,21 @@ body {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px;
+  padding: 0.25rem 0.75rem 0.25rem 0.35rem;
   border-radius: var(--radius-full, 9999px);
-  background: transparent;
-  border: 1.5px solid var(--line);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(12px);
   cursor: pointer;
-  transition: border-color var(--ease), box-shadow var(--ease);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .profile-trigger-btn:hover,
 .profile-trigger-btn--open {
   border-color: var(--rose-active);
-  box-shadow: 0 0 0 3px rgba(184, 50, 80, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(184, 50, 80, 0.12);
+  transform: translateY(-1px);
 }
 .profile-trigger-btn:focus-visible {
   outline: 2px solid var(--ring);
@@ -2055,3 +2059,7 @@ body {
 
 
 
+
+/* Dual Range Slider */
+.dual-slider-thumb::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); border: 2px solid var(--rose-active); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }
+.dual-slider-thumb::-moz-range-thumb { pointer-events: auto; width: 20px; height: 20px; border-radius: 50%; background: var(--surface); border: 2px solid var(--rose-active); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.15); }

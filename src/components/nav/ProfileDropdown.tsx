@@ -87,13 +87,26 @@ export function ProfileDropdown({ user, onSignOut }: ProfileDropdownProps) {
         aria-expanded={isOpen}
         aria-label="User profile and settings menu"
       >
-        <span className="profile-avatar-circle">
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           {avatarSrc ? (
-            <img src={avatarSrc} alt={displayName} className="profile-avatar-img" />
+            <img 
+              src={avatarSrc} 
+              alt={displayName} 
+              style={{ width: "26px", height: "26px", borderRadius: "50%", objectFit: "cover", border: "1px solid var(--line)" }} 
+            />
           ) : (
-            <span className="profile-avatar-initial">{initial}</span>
+            <div style={{ width: "26px", height: "26px", borderRadius: "50%", background: "var(--accent)", color: "var(--rose-active)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", fontWeight: 700, fontFamily: "var(--font-serif)" }}>
+              {initial}
+            </div>
           )}
-        </span>
+          <div style={{ fontSize: "0.925rem", color: "#4b5563", fontWeight: 500, display: "flex", alignItems: "center", gap: "0.3rem" }}>
+            <span className="hide-on-mobile">Welcome,</span>
+            <span style={{ color: "#111827", fontWeight: 700 }}>
+              {displayName}
+            </span>
+            <span className="hide-on-mobile">👋</span>
+          </div>
+        </div>
         <span className="profile-trigger-chevron">
           <ChevronDownIcon size={14} />
         </span>

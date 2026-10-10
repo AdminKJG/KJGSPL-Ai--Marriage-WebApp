@@ -14,10 +14,10 @@ const HEADLINES: Record<
     author: "",
   },
   login: {
-    title: "Welcome back to your journey.",
+    title: "Find Your Perfect Match",
     subtitle: "Continue connecting with verified members matched for your personality and vision.",
     quote: "Calm and intentional from day one. No endless swiping, just meaningful introductions.",
-    author: "Meera & Arjun — Matched in Jaipur",
+    author: "",
   },
   forgot: {
     title: "Reset your account access.",
@@ -95,7 +95,7 @@ export function AuthLayout({
           height: 125px;
           object-fit: contain;
           filter: drop-shadow(0 10px 24px rgba(0,0,0,0.45));
-          animation: fadeIn 0.8s ease-out;
+          animation: fadeIn 0.3s ease-out;
           transition: transform 0.3s ease;
           margin-bottom: 1.5rem;
         }
@@ -106,7 +106,7 @@ export function AuthLayout({
           height: 70px;
           object-fit: contain;
           margin-bottom: 1rem;
-          animation: fadeIn 0.5s ease-out;
+          animation: fadeIn 0.3s ease-out;
         }
         @media (min-width: 900px) {
           .auth-mobile-logo { display: none; }
@@ -118,7 +118,7 @@ export function AuthLayout({
           text-transform: uppercase;
           color: #f43f5e;
           margin-bottom: 0.75rem;
-          animation: fadeIn 0.8s ease-out 0.2s both;
+          animation: fadeIn 0.3s ease-out 0.05s both;
         }
         .auth-title-main {
           font-family: var(--font-serif, Georgia, serif);
@@ -127,7 +127,7 @@ export function AuthLayout({
           line-height: 1.15;
           margin-bottom: 1rem;
           color: #ffffff;
-          animation: slideIn 0.8s ease-out 0.3s both;
+          animation: slideIn 0.3s ease-out 0.1s both;
         }
         .auth-title-highlight {
           color: #e11d48;
@@ -138,13 +138,13 @@ export function AuthLayout({
           color: rgba(255,255,255,0.8);
           max-width: 440px;
           margin: 0 auto;
-          animation: slideIn 0.8s ease-out 0.4s both;
+          animation: slideIn 0.3s ease-out 0.15s both;
         }
         .auth-form-container {
           width: 100%;
           max-width: 420px;
           margin: 0 auto;
-          animation: fadeIn 0.8s ease-out 0.2s both;
+          animation: fadeIn 0.25s ease-out both;
         }
         .auth-form-container .ds-input {
           border-radius: 9999px !important;

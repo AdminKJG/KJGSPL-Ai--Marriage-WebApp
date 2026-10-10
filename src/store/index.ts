@@ -82,12 +82,24 @@ const callingSlice = createSlice({
     },
     callAccepted(
       state,
-      action: PayloadAction<{ call: Call; url?: string; roomName?: string; token?: string }>
+      action: PayloadAction<{ call?: Call; callId?: string; url?: string; roomName?: string; token?: string } | Call | any>
     ) {
-      state.activeCall = action.payload.call;
-      state.url = action.payload.url ?? action.payload.call.url ?? null;
-      state.roomName = action.payload.roomName ?? action.payload.call.roomName ?? null;
-      state.token = action.payload.token ?? action.payload.call.token ?? null;
+      const payload = action.payload;
+      if (!payload) return;
+
+      // Socket payloads can send flat Call object OR nested { call: Call, token: "..." }
+      const callObj: Call = payload.call ? payload.call : payload;
+
+      // Merge active call data so activeCall is NEVER reset to undefined/null
+      state.activeCall = {
+        ...(state.activeCall ?? {}),
+        ...callObj,
+        status: "ACCEPTED",
+      };
+
+      state.url = payload.url ?? callObj?.url ?? state.url ?? null;
+      state.roomName = payload.roomName ?? callObj?.roomName ?? state.roomName ?? null;
+      state.token = payload.token ?? callObj?.token ?? state.token ?? null;
       state.incomingCall = null;
     },
     callRejected(state, _action: PayloadAction<Call | undefined>) {

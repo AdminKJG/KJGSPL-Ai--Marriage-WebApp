@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button, SiteHeader } from "@/components/ui";
 import { BrandLogo } from "@/components/BrandLogo";
 import { AppNavLink } from "@/components/ui";
@@ -10,7 +10,7 @@ import { MobileBottomNav } from "@/components/nav/MobileBottomNav";
 import { setSessionExpiredHandler, tokenStore } from "@/lib/api/client";
 import { authApi, configQuery, meQuery, notificationsQuery, qk } from "@/lib/api/modules";
 import type { Call } from "@/lib/api/types";
-import { connectSocket, disconnectSocket } from "@/lib/socket";
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import {
   callAccepted,
   callEnded,
@@ -25,6 +25,7 @@ import {
   useAppDispatch,
   useAppSelector,
 } from "@/store";
+import { openNotificationsDrawer } from "@/store";
 
 import { NotificationSidebar } from "@/components/nav/NotificationSidebar";
 import { SidebarNav } from "@/components/nav/SidebarNav";
@@ -202,28 +203,105 @@ function MemberLayout() {
         queryClient.invalidateQueries({ queryKey: qk.conversations });
       });
 
+      // 🆕 notification:new — live bell update without polling
+      s.on("notification:new", (data: any) => {
+        queryClient.setQueryData(qk.notifications, (old: any) => {
+          if (!old) return old;
+          // De-dupe by id
+          const exists = old.items?.some((n: any) => n.id === data.id);
+          if (exists) return old;
+          return {
+            ...old,
+            items: [data, ...(old.items ?? [])],
+            unread: (old.unread ?? 0) + 1,
+          };
+        });
+      });
+
+      // 🆕 match:new — mutual match happened, refresh connections & discover
+      s.on("match:new", (_data: any) => {
+        queryClient.invalidateQueries({ queryKey: qk.connections });
+        queryClient.invalidateQueries({ queryKey: qk.conversations });
+        queryClient.invalidateQueries({ queryKey: ["discover"] });
+      });
+
+      // 🆕 presence:update — online/offline status overlay (stored in query cache)
+      s.on("presence:update", (data: { userId: string; online: boolean; lastSeenAt: string | null }) => {
+        queryClient.setQueryData(["presence", data.userId], data);
+      });
+
       // Realtime Calling Events
       s.on("call:incoming", (call: Call) => {
+        console.log("📞️ [Socket] call:incoming received:", call);
         dispatch(callIncoming(call));
       });
       s.on("call:token", (data: { call: Call; url?: string; roomName?: string; token?: string }) => {
+        console.log("🔑 [Socket] call:token received:", data);
         dispatch(callAccepted(data));
       });
       s.on("call:accepted", (data: { call: Call; url?: string; roomName?: string; token?: string }) => {
+        console.log("✅ [Socket] call:accepted received:", data);
         dispatch(callAccepted(data));
       });
       s.on("call:rejected", (call: Call) => {
+        console.log("❌ [Socket] call:rejected received:", call);
         dispatch(callRejected(call));
       });
       s.on("call:ended", (call: Call) => {
+        console.log("⬛ [Socket] call:ended received:", call);
         dispatch(callEnded(call));
       });
       s.on("call:missed", (call: Call) => {
+        console.log("📵 [Socket] call:missed received:", call);
         dispatch(callMissed(call));
+      });
+
+      // message_edited / message_deleted / messages_read — refresh chat
+      s.on("message_edited", (data: any) => {
+        queryClient.invalidateQueries({ queryKey: qk.messages(data.conversationId) });
+      });
+      s.on("message_deleted", (data: any) => {
+        queryClient.invalidateQueries({ queryKey: qk.messages(data.conversationId) });
+      });
+      s.on("messages_read", (data: any) => {
+        queryClient.invalidateQueries({ queryKey: qk.messages(data.conversationId) });
+        queryClient.invalidateQueries({ queryKey: qk.conversations });
+      });
+
+      // meetup events — refresh connections list
+      s.on("meetup:proposed", () => queryClient.invalidateQueries({ queryKey: qk.connections }));
+      s.on("meetup:accepted", () => queryClient.invalidateQueries({ queryKey: qk.connections }));
+      s.on("meetup:rejected", () => queryClient.invalidateQueries({ queryKey: qk.connections }));
+      s.on("meetup:cancelled", () => queryClient.invalidateQueries({ queryKey: qk.connections }));
+
+      // blocked_status_change — refresh me + connections
+      s.on("blocked_status_change", () => {
+        queryClient.invalidateQueries({ queryKey: qk.me });
+        queryClient.invalidateQueries({ queryKey: qk.connections });
+      });
+
+      // account_suspended — force sign out
+      s.on("account_suspended", () => {
+        dispatch(signedOut());
+        queryClient.clear();
+        tokenStore.clear();
+        disconnectSocket();
+        navigate({ to: "/login", replace: true });
+      });
+
+      // Reconnect: re-join open conversation rooms (docs recommendation)
+      s.on("connect", () => {
+        dispatch(socketStatus(true));
+        // refetch conversations after reconnect (missed events are not replayed)
+        queryClient.invalidateQueries({ queryKey: qk.conversations });
       });
     });
     return () => {
       active = false;
+      // cleanup new events too
+      getSocket()?.off("notification:new");
+      getSocket()?.off("match:new");
+      getSocket()?.off("presence:update");
       disconnectSocket();
     };
   }, [dispatch, queryClient]);
@@ -296,13 +374,6 @@ function MemberLayout() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <div style={{ fontSize: "0.95rem", color: "#4b5563", fontWeight: 500, display: "flex", alignItems: "center", gap: "0.4rem" }}>
-              <span>Welcome,</span>
-              <span style={{ color: "#111827", fontWeight: 700 }}>
-                {me?.name || me?.firstName || session.data?.user?.name || "Member"}
-              </span>
-              <span>👋</span>
-            </div>
           </div>
 
           <div className="desktop-top-header__actions">

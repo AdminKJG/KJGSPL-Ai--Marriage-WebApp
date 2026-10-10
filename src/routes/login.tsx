@@ -109,7 +109,7 @@ function LoginPage() {
     <AuthLayout
       variant="login"
       eyebrow={mode === "forgot" ? "Reset access" : undefined}
-      title={mode === "forgot" ? "Reset your password." : "Welcome back to your journey."}
+      title={mode === "forgot" ? "Reset your password." : "Find Your Perfect Match."}
       subtitle={
         mode === "forgot"
           ? "Enter your email and we'll send a secure reset link your way."
