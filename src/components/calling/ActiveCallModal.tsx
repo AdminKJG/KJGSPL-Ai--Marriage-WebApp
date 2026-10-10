@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { createLocalTracks, Room, RoomEvent, Track } from "livekit-client";
-import { Badge, Button, Card, Heading, Text } from "@/components/ui";
-import { callsApi } from "@/lib/api/modules";
+import { useQuery } from "@tanstack/react-query";
+import { callsApi, profileQuery } from "@/lib/api/modules";
 import { getSocket } from "@/lib/socket";
-import { callEnded, useAppDispatch, useAppSelector } from "@/store";
+import { callEnded, clearCall, useAppDispatch, useAppSelector } from "@/store";
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
@@ -12,6 +12,54 @@ const RTC_CONFIG: RTCConfiguration = {
     { urls: "stun:stun2.l.google.com:19302" },
   ],
 };
+
+function MicIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function MicOffIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6" />
+      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+    </svg>
+  );
+}
+
+function VideoIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7" />
+      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+  );
+}
+
+function VideoOffIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="1" y1="1" x2="23" y2="23" />
+      <path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10" />
+    </svg>
+  );
+}
+
+function PhoneEndIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91" />
+      <line x1="23" y1="1" x2="1" y2="23" />
+    </svg>
+  );
+}
 
 export function ActiveCallModal() {
   const dispatch = useAppDispatch();
@@ -23,9 +71,12 @@ export function ActiveCallModal() {
   const [duration, setDuration] = useState(0);
   const [micMuted, setMicMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
+  const [remoteCameraOff, setRemoteCameraOff] = useState(false);
+  const [remoteMicMuted, setRemoteMicMuted] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [hasRemoteVideo, setHasRemoteVideo] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -41,9 +92,19 @@ export function ActiveCallModal() {
   const livekitToken = storeToken ?? activeCall?.token ?? null;
   const displayRoomName = storeRoomName ?? activeCall?.roomName ?? null;
 
-  // Determine target recipient user ID
+  // Determine target recipient user ID & fetch profile
   const targetUserId =
     user?.id === activeCall?.callerId ? activeCall?.calleeId : activeCall?.callerId;
+
+  const targetProfile = useQuery({
+    ...profileQuery(targetUserId ?? ""),
+    enabled: Boolean(targetUserId),
+  });
+
+  const targetName = targetProfile.data?.name?.trim() || "Participant";
+  const targetFirstName = targetName.split(" ")[0] || "Participant";
+  const userInitial = user?.name?.[0]?.toUpperCase() || "U";
+  const targetInitial = targetFirstName[0]?.toUpperCase() || "P";
 
   // Duration timer
   useEffect(() => {
@@ -57,6 +118,43 @@ export function ActiveCallModal() {
     return () => clearInterval(timer);
   }, [activeCall]);
 
+  // Media Toggle Socket Listener (Sync mute/camera state with remote peer)
+  useEffect(() => {
+    if (!activeCall) return;
+    const socket = getSocket();
+    if (!socket) return;
+
+    const handleMediaToggle = (data: { type: "audio" | "video"; enabled: boolean }) => {
+      console.log("📡 [ActiveCall] Peer media toggle received:", data);
+      if (data.type === "video") {
+        setRemoteCameraOff(!data.enabled);
+      } else if (data.type === "audio") {
+        setRemoteMicMuted(!data.enabled);
+      }
+    };
+
+    const handleRemoteEnd = (data: any) => {
+      console.log("🔴 [ActiveCall] Socket remote end event received:", data);
+      handleEndCall();
+    };
+
+    socket.on("call:media-toggle", handleMediaToggle);
+    socket.on("call:ended", handleRemoteEnd);
+    socket.on("call:end", handleRemoteEnd);
+    socket.on("webrtc:end", handleRemoteEnd);
+    socket.on("call:cancelled", handleRemoteEnd);
+    socket.on("call:rejected", handleRemoteEnd);
+
+    return () => {
+      socket.off("call:media-toggle", handleMediaToggle);
+      socket.off("call:ended", handleRemoteEnd);
+      socket.off("call:end", handleRemoteEnd);
+      socket.off("webrtc:end", handleRemoteEnd);
+      socket.off("call:cancelled", handleRemoteEnd);
+      socket.off("call:rejected", handleRemoteEnd);
+    };
+  }, [activeCall, targetUserId]);
+
   // LiveKit / WebRTC Media Connection Setup
   useEffect(() => {
     if (!activeCall) return;
@@ -67,10 +165,14 @@ export function ActiveCallModal() {
       if (!activeCall) return;
       const callId = activeCall.callId;
 
-      // Acquire local media preview immediately so user always sees their camera right away
+      // Acquire local media preview with strict Hardware Echo Cancellation & Noise Suppression
       try {
         const localStream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
+          audio: {
+            echoCancellation: { ideal: true },
+            noiseSuppression: { ideal: true },
+            autoGainControl: { ideal: true },
+          },
           video: isVideo ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
         });
         if (!active) {
@@ -79,7 +181,12 @@ export function ActiveCallModal() {
         }
         localStreamRef.current = localStream;
         if (localVideoRef.current && isVideo) {
-          localVideoRef.current.srcObject = localStream;
+          localVideoRef.current.muted = true;
+          localVideoRef.current.volume = 0;
+          const vTracks = localStream.getVideoTracks();
+          if (vTracks.length > 0) {
+            localVideoRef.current.srcObject = new MediaStream(vTracks);
+          }
         }
         console.log(`🎥 [ActiveCall] Local media preview ready — tracks: ${localStream.getTracks().length}`);
       } catch (err) {
@@ -87,7 +194,7 @@ export function ActiveCallModal() {
         setStreamError("Microphone or camera permission not granted or device in use.");
       }
 
-      // Option A: LiveKit SFU Connection (When livekitUrl and livekitToken are provided by backend)
+      // Option A: LiveKit SFU Connection
       if (livekitUrl && livekitToken) {
         console.log(`🎥 [LiveKit] Connecting to LiveKit Server: ${livekitUrl} (Room: ${displayRoomName})`);
         try {
@@ -97,27 +204,58 @@ export function ActiveCallModal() {
           });
           livekitRoomRef.current = room;
 
-          const attachTrack = (track: Track, identity?: string) => {
-            console.log(`🎥 [LiveKit] Attaching remote track: ${track.kind} from ${identity ?? "peer"}`);
+          const attachTrack = (track: Track, identity?: string, isLocal?: boolean) => {
+            console.log(`🎥 [LiveKit] Remote track received: ${track.kind} from ${identity ?? "peer"}`);
+            // Strictly prevent attaching local participant tracks to remote audio/video elements (prevents self-voice echo)
+            if (isLocal || (identity && (identity === user?.id || identity === room.localParticipant.identity))) {
+              console.log("ℹ️ [LiveKit] Ignoring local participant track attachment");
+              return;
+            }
             if (track.kind === Track.Kind.Video && remoteVideoRef.current && isVideo) {
+              remoteVideoRef.current.muted = true;
+              remoteVideoRef.current.volume = 0;
               track.attach(remoteVideoRef.current);
               setHasRemoteVideo(true);
+              setRemoteCameraOff(false);
             }
             if (track.kind === Track.Kind.Audio && remoteAudioRef.current) {
+              remoteAudioRef.current.muted = false;
               track.attach(remoteAudioRef.current);
               remoteAudioRef.current.play().catch((err) => console.warn("LiveKit audio autoplay:", err));
             }
           };
 
           room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
-            attachTrack(track, participant.identity);
+            attachTrack(track, participant.identity, participant.isLocal);
           });
 
-          room.on(RoomEvent.TrackUnsubscribed, (track) => {
+          room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
             console.log(`🎥 [LiveKit] Remote track unsubscribed: ${track.kind}`);
             track.detach();
-            if (track.kind === Track.Kind.Video) {
+            if (track.kind === Track.Kind.Video && participant.identity !== user?.id && !participant.isLocal) {
               setHasRemoteVideo(false);
+            }
+          });
+
+          // Listen for LiveKit Mute/Unmute events so avatar shows instantly when remote user turns off camera
+          room.on(RoomEvent.TrackMuted, (pub, participant) => {
+            console.log(`🎥 [LiveKit] Track muted: ${pub.kind} from ${participant.identity}`);
+            if (pub.kind === Track.Kind.Video && participant.identity !== user?.id && !participant.isLocal) {
+              setRemoteCameraOff(true);
+            }
+            if (pub.kind === Track.Kind.Audio && participant.identity !== user?.id && !participant.isLocal) {
+              setRemoteMicMuted(true);
+            }
+          });
+
+          room.on(RoomEvent.TrackUnmuted, (pub, participant) => {
+            console.log(`🎥 [LiveKit] Track unmuted: ${pub.kind} from ${participant.identity}`);
+            if (pub.kind === Track.Kind.Video && participant.identity !== user?.id && !participant.isLocal) {
+              setRemoteCameraOff(false);
+              setHasRemoteVideo(true);
+            }
+            if (pub.kind === Track.Kind.Audio && participant.identity !== user?.id && !participant.isLocal) {
+              setRemoteMicMuted(false);
             }
           });
 
@@ -136,7 +274,7 @@ export function ActiveCallModal() {
           room.remoteParticipants.forEach((participant) => {
             participant.trackPublications.forEach((pub) => {
               if (pub.isSubscribed && pub.track) {
-                attachTrack(pub.track, participant.identity);
+                attachTrack(pub.track, participant.identity, participant.isLocal);
               }
             });
           });
@@ -144,12 +282,18 @@ export function ActiveCallModal() {
           // Publish local tracks to LiveKit room cleanly
           try {
             const localTracks = await createLocalTracks({
-              audio: true,
+              audio: {
+                echoCancellation: { ideal: true },
+                noiseSuppression: { ideal: true },
+                autoGainControl: { ideal: true },
+              },
               video: isVideo ? true : false,
             });
 
             for (const track of localTracks) {
               if (track.kind === Track.Kind.Video && localVideoRef.current && isVideo) {
+                localVideoRef.current.muted = true;
+                localVideoRef.current.volume = 0;
                 track.attach(localVideoRef.current);
               }
               room.localParticipant.publishTrack(track).catch((pubErr) => {
@@ -169,7 +313,11 @@ export function ActiveCallModal() {
       console.log(`🎥 [ActiveCall] Initializing P2P WebRTC — audio: true, video: ${isVideo}`);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          } as MediaTrackConstraints,
           video: isVideo ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false,
         });
 
@@ -180,7 +328,12 @@ export function ActiveCallModal() {
 
         localStreamRef.current = stream;
         if (localVideoRef.current && isVideo) {
-          localVideoRef.current.srcObject = stream;
+          localVideoRef.current.muted = true;
+          localVideoRef.current.volume = 0;
+          const vTracks = stream.getVideoTracks();
+          if (vTracks.length > 0) {
+            localVideoRef.current.srcObject = new MediaStream(vTracks);
+          }
         }
 
         const pc = new RTCPeerConnection(RTC_CONFIG);
@@ -194,13 +347,38 @@ export function ActiveCallModal() {
           console.log("🎥 [WebRTC] Remote track received:", event.track.kind);
           const [remoteStream] = event.streams;
 
-          if (remoteVideoRef.current && isVideo) {
-            remoteVideoRef.current.srcObject = remoteStream;
-            setHasRemoteVideo(true);
+          if (event.track.kind === "video") {
+            if (remoteVideoRef.current && isVideo) {
+              remoteVideoRef.current.muted = true;
+              remoteVideoRef.current.volume = 0;
+              const remoteVTracks = remoteStream ? remoteStream.getVideoTracks() : [event.track];
+              remoteVideoRef.current.srcObject = new MediaStream(remoteVTracks);
+              setHasRemoteVideo(true);
+              setRemoteCameraOff(false);
+            }
+            event.track.onmute = () => {
+              console.log("🎥 [WebRTC] Remote video track muted!");
+              setRemoteCameraOff(true);
+            };
+            event.track.onunmute = () => {
+              console.log("🎥 [WebRTC] Remote video track unmuted!");
+              setRemoteCameraOff(false);
+              setHasRemoteVideo(true);
+            };
+            event.track.onended = () => {
+              setHasRemoteVideo(false);
+            };
           }
-          if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = remoteStream;
-            remoteAudioRef.current.play().catch((err) => console.warn("Audio autoplay blocked:", err));
+
+          if (event.track.kind === "audio") {
+            if (remoteAudioRef.current) {
+              remoteAudioRef.current.muted = false;
+              const remoteATracks = remoteStream ? remoteStream.getAudioTracks() : [event.track];
+              remoteAudioRef.current.srcObject = new MediaStream(remoteATracks);
+              remoteAudioRef.current.play().catch((err) => console.warn("Audio autoplay blocked:", err));
+            }
+            event.track.onmute = () => setRemoteMicMuted(true);
+            event.track.onunmute = () => setRemoteMicMuted(false);
           }
         };
 
@@ -349,8 +527,6 @@ export function ActiveCallModal() {
     };
   }, [activeCall, isVideo, user?.id, targetUserId, livekitUrl, livekitToken, displayRoomName]);
 
-  const [isExpanded, setIsExpanded] = useState(true);
-
   if (!activeCall) return null;
 
   const toggleMic = async () => {
@@ -364,7 +540,14 @@ export function ActiveCallModal() {
         track.enabled = !newMuted;
       });
     }
-    console.log(`🔇 [ActiveCall] Mic ${newMuted ? "MUTED" : "UNMUTED"}`);
+
+    getSocket()?.emit("call:media-toggle", {
+      callId: activeCall.callId,
+      targetUserId,
+      type: "audio",
+      enabled: !newMuted,
+    });
+    console.log(`` + (newMuted ? "🔇" : "🎙️") + ` [ActiveCall] Mic ${newMuted ? "MUTED" : "UNMUTED"}`);
   };
 
   const toggleCamera = async () => {
@@ -378,43 +561,81 @@ export function ActiveCallModal() {
         track.enabled = !newOff;
       });
     }
-    console.log(`📷 [ActiveCall] Camera ${newOff ? "OFF" : "ON"}`);
+
+    // When toggled back ON, re-assign srcObject with video tracks ONLY & ensure muted = true
+    if (!newOff && localVideoRef.current && localStreamRef.current) {
+      localVideoRef.current.muted = true;
+      localVideoRef.current.volume = 0;
+      const vTracks = localStreamRef.current.getVideoTracks();
+      if (vTracks.length > 0) {
+        localVideoRef.current.srcObject = new MediaStream(vTracks);
+      }
+    }
+
+    getSocket()?.emit("call:media-toggle", {
+      callId: activeCall.callId,
+      targetUserId,
+      type: "video",
+      enabled: !newOff,
+    });
+    console.log(`` + (newOff ? "🚫" : "📷") + ` [ActiveCall] Camera ${newOff ? "OFF" : "ON"}`);
   };
 
   const handleEndCall = () => {
-    if (isEnding) return;
-    console.log(`🔴 [ActiveCall] End Call button clicked — callId: ${activeCall?.callId}, duration: ${duration}s`);
+    const currentCall = activeCall;
+    const callId = currentCall?.callId;
+    console.log(`🔴 [ActiveCall] End Call executed — callId: ${callId}, duration: ${duration}s`);
+
     setIsEnding(true);
 
-    const callId = activeCall?.callId;
-    if (callId) {
-      // Send instant socket notification to peer so remote side terminates immediately
-      getSocket()?.emit("call:end", { callId });
-      // Call REST end API in background (non-blocking)
-      callsApi.end(callId).catch((err) => {
-        console.warn("⚠️ [ActiveCall] Background REST end call non-fatal warning:", err);
-      });
+    // 1. Instantly dispatch Redux state reset to unmount call modal without delay
+    dispatch(callEnded(currentCall ?? undefined));
+    dispatch(clearCall());
+
+    // 2. Emit socket notifications to target peer & backend
+    try {
+      if (callId) {
+        const socket = getSocket();
+        socket?.emit("call:end", { callId, targetUserId });
+        socket?.emit("call:ended", { callId, targetUserId });
+        socket?.emit("webrtc:end", { callId, targetUserId });
+        callsApi.end(callId).catch((err) => {
+          console.warn("⚠️ [ActiveCall] Background REST end call non-fatal warning:", err);
+        });
+      }
+    } catch (err) {
+      console.warn("⚠️ [ActiveCall] Socket emit end error:", err);
     }
 
-    // Clean up local tracks & room connections immediately
-    if (livekitRoomRef.current) {
-      livekitRoomRef.current.disconnect();
-      livekitRoomRef.current = null;
-    }
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
+    // 3. Disconnect LiveKit safely
+    try {
+      if (livekitRoomRef.current) {
+        livekitRoomRef.current.disconnect();
+        livekitRoomRef.current = null;
+      }
+    } catch (err) {
+      console.warn("⚠️ [ActiveCall] LiveKit disconnect error:", err);
     }
 
-    // Dispatch Redux callEnded action to close modal right away
-    if (activeCall) {
-      dispatch(callEnded(activeCall));
+    // 4. Close WebRTC peer connection safely
+    try {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+    } catch (err) {
+      console.warn("⚠️ [ActiveCall] WebRTC PC close error:", err);
     }
-    console.log("⬛ [ActiveCall] Call ended — modal closed instantly, media tracks stopped");
+
+    // 5. Stop local media stream tracks safely
+    try {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
+    } catch (err) {
+      console.warn("⚠️ [ActiveCall] Local media tracks stop error:", err);
+    }
   };
 
   const formatTime = (sec: number) => {
@@ -443,7 +664,7 @@ export function ActiveCallModal() {
       aria-modal="true"
       aria-label="Active Call"
     >
-      {/* Hidden Audio element for playing remote participant's voice */}
+      {/* Hidden Audio element for playing remote participant's voice ONLY */}
       <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: "none" }} />
 
       <div
@@ -470,7 +691,7 @@ export function ActiveCallModal() {
             position: "relative",
             width: "100%",
             height: "100%",
-            backgroundColor: "#000",
+            backgroundColor: "#050507",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -480,52 +701,97 @@ export function ActiveCallModal() {
           <div
             style={{
               position: "absolute",
-              top: "16px",
-              left: "16px",
-              right: "16px",
-              zIndex: 10,
+              top: isExpanded ? "20px" : "8px",
+              left: isExpanded ? "24px" : "8px",
+              right: isExpanded ? "24px" : "8px",
+              zIndex: 30,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "0.6rem 1.2rem",
+              padding: isExpanded ? "0.75rem 1.5rem" : "0.35rem 0.6rem",
               borderRadius: "9999px",
-              backgroundColor: "rgba(24, 24, 27, 0.75)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
+              backgroundColor: "rgba(18, 18, 22, 0.85)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
               border: "1px solid rgba(255, 255, 255, 0.12)",
               color: "#fff",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+              whiteSpace: "nowrap",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
               <span
                 style={{
-                  width: "10px",
-                  height: "10px",
+                  width: "8px",
+                  height: "8px",
                   borderRadius: "50%",
                   backgroundColor: "#10b981",
                   boxShadow: "0 0 10px #10b981",
                   display: "inline-block",
-                  animation: "pulse 1.5s infinite",
+                  flexShrink: 0,
                 }}
               />
-              <span style={{ fontWeight: 700, fontSize: "0.95rem", letterSpacing: "0.02em" }}>
-                {isVideo ? "HD Video Call" : "HD Voice Call"}
-              </span>
-              <span style={{ fontSize: "0.75rem", opacity: 0.6, display: isExpanded ? "inline" : "none" }}>
-                · 🔒 End-to-End Encrypted
-              </span>
+              {isExpanded && (
+                <>
+                  <span style={{ fontWeight: 700, fontSize: "0.95rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+                    {isVideo ? `Live Video Call · ${targetFirstName}` : `Voice Call · ${targetFirstName}`}
+                  </span>
+                  <span style={{ fontSize: "0.75rem", color: "#a1a1aa", whiteSpace: "nowrap" }}>
+                    · 🔒 Encrypted
+                  </span>
+                </>
+              )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: isExpanded ? "0.6rem" : "0.35rem", flexShrink: 0 }}>
+              {/* Mute Indicator Pills in Header */}
+              {micMuted && (
+                <span
+                  style={{
+                    padding: isExpanded ? "0.25rem 0.75rem" : "0.15rem 0.5rem",
+                    borderRadius: "9999px",
+                    backgroundColor: "rgba(239, 68, 68, 0.25)",
+                    color: "#fca5a5",
+                    fontWeight: 700,
+                    fontSize: isExpanded ? "0.78rem" : "0.7rem",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  {isExpanded ? "🔇 You Muted" : "🔇 You"}
+                </span>
+              )}
+
+              {remoteMicMuted && (
+                <span
+                  style={{
+                    padding: isExpanded ? "0.25rem 0.75rem" : "0.15rem 0.5rem",
+                    borderRadius: "9999px",
+                    backgroundColor: "rgba(239, 68, 68, 0.25)",
+                    color: "#fca5a5",
+                    fontWeight: 700,
+                    fontSize: isExpanded ? "0.78rem" : "0.7rem",
+                    border: "1px solid rgba(239, 68, 68, 0.4)",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                  }}
+                >
+                  {isExpanded ? `🔇 ${targetFirstName} Muted` : `🔇 ${targetFirstName}`}
+                </span>
+              )}
+
               <span
                 style={{
-                  padding: "0.25rem 0.75rem",
+                  padding: isExpanded ? "0.3rem 0.85rem" : "0.15rem 0.5rem",
                   borderRadius: "9999px",
                   backgroundColor: "rgba(244, 63, 94, 0.2)",
                   color: "#f43f5e",
                   fontWeight: 700,
-                  fontSize: "0.85rem",
+                  fontSize: isExpanded ? "0.85rem" : "0.72rem",
                   letterSpacing: "0.04em",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
                 }}
               >
                 ⏱️ {formatTime(duration)}
@@ -534,18 +800,25 @@ export function ActiveCallModal() {
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                title={isExpanded ? "Minimize Window" : "Expand Fullscreen"}
+                title={isExpanded ? "Minimize to Floating Window" : "Expand Fullscreen"}
                 style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  border: "none",
+                  background: "rgba(255, 255, 255, 0.12)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
                   color: "#fff",
-                  padding: "0.4rem 0.6rem",
-                  borderRadius: "0.5rem",
+                  padding: isExpanded ? "0.4rem 0.8rem" : "0.2rem 0.5rem",
+                  borderRadius: "9999px",
                   cursor: "pointer",
-                  fontSize: "0.85rem",
+                  fontSize: isExpanded ? "0.8rem" : "0.72rem",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  transition: "background 0.2s ease",
                 }}
               >
-                {isExpanded ? "🗗 Minimize" : "🗖 Expand"}
+                {isExpanded ? "🗗 Floating Window" : "🗖 Fullscreen"}
               </button>
             </div>
           </div>
@@ -555,14 +828,15 @@ export function ActiveCallModal() {
             <div
               style={{
                 position: "absolute",
-                top: "70px",
-                zIndex: 11,
-                backgroundColor: "rgba(239, 68, 68, 0.2)",
+                top: isExpanded ? "85px" : "45px",
+                zIndex: 31,
+                backgroundColor: "rgba(239, 68, 68, 0.25)",
                 border: "1px solid #ef4444",
                 color: "#fca5a5",
-                padding: "0.5rem 1rem",
-                borderRadius: "0.75rem",
+                padding: "0.5rem 1.25rem",
+                borderRadius: "9999px",
                 fontSize: "0.85rem",
+                backdropFilter: "blur(12px)",
               }}
             >
               ⚠️ {streamError}
@@ -577,50 +851,103 @@ export function ActiveCallModal() {
                 ref={remoteVideoRef}
                 autoPlay
                 playsInline
+                muted
+                onLoadedMetadata={(e) => {
+                  e.currentTarget.muted = true;
+                  e.currentTarget.volume = 0;
+                }}
                 style={{
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  display: hasRemoteVideo ? "block" : "none",
+                  display: hasRemoteVideo && !remoteCameraOff ? "block" : "none",
                 }}
               />
 
-              {!hasRemoteVideo && (
+              {/* Remote Participant Avatar Card (Always visible when Remote Camera is Off or Connecting) */}
+              {(!hasRemoteVideo || remoteCameraOff) && (
                 <div
                   style={{
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
-                    gap: "1rem",
+                    gap: "1.25rem",
                     color: "#a1a1aa",
+                    zIndex: 20,
                   }}
                 >
                   <div
                     style={{
-                      width: "80px",
-                      height: "80px",
+                      width: isExpanded ? "120px" : "65px",
+                      height: isExpanded ? "120px" : "65px",
                       borderRadius: "50%",
-                      backgroundColor: "rgba(244, 63, 94, 0.15)",
-                      color: "#f43f5e",
+                      background: "linear-gradient(135deg, rgba(244, 63, 94, 0.3) 0%, rgba(225, 29, 72, 0.6) 100%)",
+                      color: "#fff",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: "2.75rem",
-                      boxShadow: "0 0 25px rgba(244, 63, 94, 0.3)",
-                      animation: "pulse 1.5s infinite",
+                      fontSize: isExpanded ? "3.5rem" : "1.9rem",
+                      fontWeight: 700,
+                      boxShadow: "0 0 50px rgba(244, 63, 94, 0.4)",
+                      border: "3px solid rgba(255, 255, 255, 0.2)",
                     }}
                   >
-                    📹
+                    {targetInitial}
                   </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ color: "#fff", fontWeight: 700, fontSize: "1.1rem" }}>
-                      Connecting Live Remote Video…
+                  {isExpanded && (
+                    <div style={{ textAlign: "center" }}>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: "1.25rem" }}>
+                        {remoteCameraOff ? `${targetFirstName} Turned Camera Off` : `Connecting ${targetFirstName}…`}
+                      </div>
+                      {remoteMicMuted && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            marginTop: "0.6rem",
+                            padding: "0.35rem 1rem",
+                            borderRadius: "9999px",
+                            backgroundColor: "rgba(239, 68, 68, 0.85)",
+                            color: "#fff",
+                            fontSize: "0.85rem",
+                            fontWeight: 700,
+                            boxShadow: "0 4px 15px rgba(239, 68, 68, 0.5)",
+                          }}
+                        >
+                          🔇 {targetFirstName} is Muted
+                        </span>
+                      )}
                     </div>
-                    <div style={{ fontSize: "0.85rem", color: "#71717a", marginTop: "0.25rem" }}>
-                      Waiting for participant media stream
-                    </div>
-                  </div>
+                  )}
+                </div>
+              )}
+
+              {/* Floating Badge on Main Video if Remote Participant is Muted */}
+              {hasRemoteVideo && !remoteCameraOff && remoteMicMuted && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: isExpanded ? "85px" : "45px",
+                    left: isExpanded ? "28px" : "14px",
+                    zIndex: 26,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    padding: "0.4rem 0.9rem",
+                    borderRadius: "9999px",
+                    backgroundColor: "rgba(239, 68, 68, 0.9)",
+                    color: "#fff",
+                    fontSize: "0.8rem",
+                    fontWeight: 700,
+                    backdropFilter: "blur(12px)",
+                    boxShadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                  }}
+                >
+                  <span>🔇</span>
+                  <span>{targetFirstName} is Muted</span>
                 </div>
               )}
 
@@ -628,40 +955,94 @@ export function ActiveCallModal() {
               <div
                 style={{
                   position: "absolute",
-                  bottom: isExpanded ? "90px" : "12px",
-                  right: isExpanded ? "24px" : "12px",
-                  width: isExpanded ? "200px" : "100px",
-                  height: isExpanded ? "140px" : "70px",
+                  bottom: isExpanded ? "110px" : "14px",
+                  right: isExpanded ? "28px" : "14px",
+                  width: isExpanded ? "220px" : "90px",
+                  height: isExpanded ? "150px" : "60px",
                   backgroundColor: "#18181b",
-                  borderRadius: "1rem",
+                  borderRadius: "1.25rem",
                   overflow: "hidden",
-                  border: "2px solid rgba(244, 63, 94, 0.5)",
-                  boxShadow: "0 12px 30px rgba(0, 0, 0, 0.7)",
-                  zIndex: 10,
+                  border: "2px solid rgba(244, 63, 94, 0.6)",
+                  boxShadow: "0 15px 35px rgba(0, 0, 0, 0.8)",
+                  zIndex: 25,
                   transition: "all 0.3s ease",
                 }}
               >
-                {!cameraOff ? (
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }}
-                  />
-                ) : (
+                {/* Local Mute Indicator Badge */}
+                {micMuted && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "8px",
+                      left: "8px",
+                      zIndex: 26,
+                      backgroundColor: "rgba(239, 68, 68, 0.9)",
+                      color: "#fff",
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      padding: "0.15rem 0.45rem",
+                      borderRadius: "9999px",
+                      backdropFilter: "blur(4px)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.25rem",
+                    }}
+                  >
+                    <span>🔇 Muted</span>
+                  </div>
+                )}
+
+                {/* Always keep video element mounted in DOM to retain stream on toggle */}
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  onLoadedMetadata={(e) => {
+                    e.currentTarget.muted = true;
+                    e.currentTarget.volume = 0;
+                  }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transform: "scaleX(-1)",
+                    display: cameraOff ? "none" : "block",
+                  }}
+                />
+
+                {cameraOff && (
                   <div
                     style={{
                       width: "100%",
                       height: "100%",
                       display: "flex",
+                      flexDirection: "column",
                       alignItems: "center",
                       justifyContent: "center",
-                      color: "#71717a",
-                      fontSize: "0.75rem",
+                      background: "linear-gradient(135deg, #18181b 0%, #27272a 100%)",
+                      color: "#a1a1aa",
+                      gap: "0.25rem",
                     }}
                   >
-                    Cam Off
+                    <div
+                      style={{
+                        width: isExpanded ? "44px" : "28px",
+                        height: isExpanded ? "44px" : "28px",
+                        borderRadius: "50%",
+                        backgroundColor: "rgba(244, 63, 94, 0.2)",
+                        color: "#f43f5e",
+                        fontWeight: 700,
+                        fontSize: isExpanded ? "1.1rem" : "0.75rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "1px solid rgba(244, 63, 94, 0.4)",
+                      }}
+                    >
+                      {userInitial}
+                    </div>
+                    <span style={{ fontSize: "0.65rem", color: "#a1a1aa", fontWeight: 600 }}>Cam Off</span>
                   </div>
                 )}
               </div>
@@ -679,29 +1060,68 @@ export function ActiveCallModal() {
             >
               <div
                 style={{
-                  width: "110px",
-                  height: "110px",
+                  width: isExpanded ? "120px" : "60px",
+                  height: isExpanded ? "120px" : "60px",
                   borderRadius: "50%",
                   backgroundColor: "rgba(16, 185, 129, 0.15)",
                   color: "#10b981",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "3.5rem",
-                  boxShadow: "0 0 35px rgba(16, 185, 129, 0.25)",
-                  animation: "pulse 1.5s infinite",
+                  fontSize: isExpanded ? "3.5rem" : "1.8rem",
+                  boxShadow: "0 0 40px rgba(16, 185, 129, 0.3)",
                 }}
               >
                 🎙️
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: "1.35rem", fontWeight: 700, color: "#fff" }}>
-                  Live Audio Connection Active
+              {isExpanded && (
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff" }}>
+                    Voice Call with {targetFirstName}
+                  </div>
+                  <div style={{ fontSize: "0.9rem", color: "#a1a1aa", marginTop: "0.35rem" }}>
+                    Crystal-clear encrypted audio stream active
+                  </div>
+                  {remoteMicMuted && (
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        marginTop: "0.85rem",
+                        padding: "0.4rem 1.1rem",
+                        borderRadius: "9999px",
+                        backgroundColor: "rgba(239, 68, 68, 0.85)",
+                        color: "#fff",
+                        fontSize: "0.85rem",
+                        fontWeight: 700,
+                        boxShadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+                      }}
+                    >
+                      <span>🔇 {targetFirstName} is Muted</span>
+                    </div>
+                  )}
+                  {micMuted && (
+                    <div
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        marginTop: "0.5rem",
+                        padding: "0.35rem 0.9rem",
+                        borderRadius: "9999px",
+                        backgroundColor: "rgba(239, 68, 68, 0.25)",
+                        color: "#ef4444",
+                        fontSize: "0.8rem",
+                        fontWeight: 600,
+                        border: "1px solid rgba(239, 68, 68, 0.4)",
+                      }}
+                    >
+                      <span>🔇 You are Muted</span>
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: "0.9rem", color: "#a1a1aa", marginTop: "0.35rem" }}>
-                  Crystal-clear encrypted voice transmission
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -709,20 +1129,20 @@ export function ActiveCallModal() {
           <div
             style={{
               position: "absolute",
-              bottom: "20px",
+              bottom: isExpanded ? "28px" : "10px",
               left: "50%",
               transform: "translateX(-50%)",
-              zIndex: 20,
+              zIndex: 30,
               display: "flex",
               alignItems: "center",
-              gap: "1rem",
-              padding: "0.75rem 1.75rem",
+              gap: isExpanded ? "1.25rem" : "0.5rem",
+              padding: isExpanded ? "0.85rem 2rem" : "0.35rem 0.85rem",
               borderRadius: "9999px",
-              backgroundColor: "rgba(24, 24, 27, 0.85)",
-              backdropFilter: "blur(18px)",
-              WebkitBackdropFilter: "blur(18px)",
+              backgroundColor: "rgba(18, 18, 22, 0.85)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
               border: "1px solid rgba(255, 255, 255, 0.15)",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
             }}
           >
             {/* Mute Mic Button */}
@@ -731,8 +1151,8 @@ export function ActiveCallModal() {
               onClick={toggleMic}
               title={micMuted ? "Unmute Microphone" : "Mute Microphone"}
               style={{
-                width: "48px",
-                height: "48px",
+                width: isExpanded ? "52px" : "36px",
+                height: isExpanded ? "52px" : "36px",
                 borderRadius: "50%",
                 border: "none",
                 backgroundColor: micMuted ? "#ef4444" : "rgba(255, 255, 255, 0.15)",
@@ -740,12 +1160,12 @@ export function ActiveCallModal() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: "1.25rem",
+                fontSize: isExpanded ? "1.35rem" : "1rem",
                 cursor: "pointer",
                 transition: "all 0.2s ease",
               }}
             >
-              {micMuted ? "🔇" : "🎙️"}
+              {micMuted ? <MicOffIcon size={isExpanded ? 22 : 16} /> : <MicIcon size={isExpanded ? 22 : 16} />}
             </button>
 
             {/* Toggle Camera Button */}
@@ -755,8 +1175,8 @@ export function ActiveCallModal() {
                 onClick={toggleCamera}
                 title={cameraOff ? "Turn Camera On" : "Turn Camera Off"}
                 style={{
-                  width: "48px",
-                  height: "48px",
+                  width: isExpanded ? "52px" : "36px",
+                  height: isExpanded ? "52px" : "36px",
                   borderRadius: "50%",
                   border: "none",
                   backgroundColor: cameraOff ? "#ef4444" : "rgba(255, 255, 255, 0.15)",
@@ -764,12 +1184,12 @@ export function ActiveCallModal() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "1.25rem",
+                  fontSize: isExpanded ? "1.35rem" : "1rem",
                   cursor: "pointer",
                   transition: "all 0.2s ease",
                 }}
               >
-                {cameraOff ? "🚫" : "📷"}
+                {cameraOff ? <VideoOffIcon size={isExpanded ? 22 : 16} /> : <VideoIcon size={isExpanded ? 22 : 16} />}
               </button>
             )}
 
@@ -798,7 +1218,7 @@ export function ActiveCallModal() {
                 transform: isEnding ? "scale(0.95)" : "scale(1)",
               }}
             >
-              <span>{isEnding ? "⏳" : "📞"}</span>
+              <PhoneEndIcon size={isExpanded ? 20 : 16} />
               {isExpanded && <span>{isEnding ? "Ending..." : "End Call"}</span>}
             </button>
           </div>
@@ -807,4 +1227,3 @@ export function ActiveCallModal() {
     </div>
   );
 }
-

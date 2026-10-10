@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useEffect, useRef, useState, type KeyboardEvent, type ChangeEvent, Fragment } from "react";
 import { Avatar, ErrorState, LoadingState } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
-import { aiApi, callsApi, chatApi, messagesQuery, profileQuery, conversationsQuery, qk } from "@/lib/api/modules";
+import { aiApi, callsApi, chatApi, messagesQuery, profileQuery, conversationsQuery, presenceQuery, qk } from "@/lib/api/modules";
 import { getSocket } from "@/lib/socket";
 import { callAccepted, useAppDispatch } from "@/store";
 import {
@@ -337,10 +337,26 @@ function WhatsAppChatPage() {
   };
 
   const targetName = profile.data?.name?.trim() || "Mutual Match";
-  const targetMeta = [
-    profile.data?.age ? `${profile.data.age} yrs` : null,
-    profile.data?.city,
-  ].filter(Boolean).join(" · ");
+
+  const presence = useQuery(presenceQuery(isBot ? undefined : profileId));
+  const isOnline = isBot ? true : presence.data?.online ?? false;
+  const lastSeenAt = presence.data?.lastSeenAt;
+
+  const formatPresenceStatus = () => {
+    if (isBot) return "🟢 Online · AI Match";
+    if (isOnline) {
+      return "🟢 Online";
+    }
+    if (lastSeenAt) {
+      const diffMs = Date.now() - new Date(lastSeenAt).getTime();
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffMins < 1) return "⚪ Offline · Last seen just now";
+      if (diffMins < 60) return `⚪ Offline · Last seen ${diffMins}m ago`;
+      if (diffHours < 24) return `⚪ Offline · Last seen ${diffHours}h ago`;
+    }
+    return "⚪ Offline";
+  };
 
   return (
     <div className="whatsapp-chat-container">
@@ -365,13 +381,22 @@ function WhatsAppChatPage() {
             {profile.data && (
               <div className="whatsapp-avatar-wrapper">
                 <Avatar profile={profile.data} />
-                <span className="whatsapp-online-badge" />
+                <span
+                  className="whatsapp-online-badge"
+                  style={{
+                    backgroundColor: isOnline ? "#10b981" : "#71717a",
+                    borderColor: "var(--card)",
+                  }}
+                />
               </div>
             )}
             <div className="whatsapp-chat-header-info">
               <h2 className="whatsapp-chat-header-name">{targetName}</h2>
-              <span className="whatsapp-chat-header-status">
-                🟢 {targetMeta || "Online"}
+              <span
+                className="whatsapp-chat-header-status"
+                style={{ color: isOnline ? "#10b981" : "#a1a1aa" }}
+              >
+                {formatPresenceStatus()}
               </span>
             </div>
           </div>
@@ -495,6 +520,7 @@ function WhatsAppChatPage() {
 
           // If message is call event log
           if (m.text?.toLowerCase().includes("call")) {
+            const isVideoCall = m.text.toLowerCase().includes("video");
             return (
               <Fragment key={m.id}>
                 {showDatePill && (
@@ -502,12 +528,47 @@ function WhatsAppChatPage() {
                     {dateLabel}
                   </div>
                 )}
-                <div className="whatsapp-bubble whatsapp-bubble--call">
-                  <PhoneIcon size={18} style={{ color: "var(--rose, #e11d48)" }} />
-                  <span style={{ fontSize: "0.875rem", fontWeight: 500 }}>{m.text}</span>
-                  <span className="whatsapp-bubble-footer" style={{ marginTop: 0 }}>
-                    {formattedTime}
-                  </span>
+                <div
+                  className={`whatsapp-bubble ${
+                    isMe ? "whatsapp-bubble--outgoing" : "whatsapp-bubble--incoming"
+                  }`}
+                  style={{
+                    display: "inline-flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: "0.6rem",
+                    padding: "0.65rem 1rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      backgroundColor: isMe ? "rgba(255, 255, 255, 0.2)" : "rgba(225, 29, 72, 0.1)",
+                      color: isMe ? "#ffffff" : "#e11d48",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isVideoCall ? <VideoIcon size={16} /> : <PhoneIcon size={16} />}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.15rem" }}>
+                    <span style={{ fontSize: "0.875rem", fontWeight: 600 }}>{m.text}</span>
+                    <div
+                      className="whatsapp-bubble-footer"
+                      style={{ marginTop: 0, justifyContent: "flex-end" }}
+                    >
+                      <span>{formattedTime}</span>
+                      {isMe && (
+                        <span className="whatsapp-check-icon">
+                          <CheckCheckIcon size={15} />
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </Fragment>
             );

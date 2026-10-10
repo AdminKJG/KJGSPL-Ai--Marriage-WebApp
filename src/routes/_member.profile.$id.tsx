@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge, Button, Card, Heading, Label, Text, Textarea } from "@/components/ui";
 import { Avatar, ErrorState, LoadingState, TagList } from "@/components/ui";
 import { useToast } from "@/components/ui/Toast";
-import { callsApi, compatibilityQuery, connectionsQuery, profileApi, profileQuery, qk } from "@/lib/api/modules";
+import { callsApi, compatibilityQuery, connectionsQuery, profileApi, profileQuery, presenceQuery, qk } from "@/lib/api/modules";
 import { getSocket } from "@/lib/socket";
 import { callAccepted, useAppDispatch } from "@/store";
 
@@ -276,6 +276,8 @@ function ProfilePage() {
   const { data: p, isLoading, error } = useQuery(profileQuery(id));
   const compat = useQuery(compatibilityQuery(id));
   const connections = useQuery(connectionsQuery());
+  const presence = useQuery(presenceQuery(id));
+  const isOnline = presence.data?.online ?? false;
 
   const { showError, showInfo } = useToast();
   const [callingKind, setCallingKind] = useState<"AUDIO" | "VIDEO" | null>(null);
@@ -372,11 +374,37 @@ function ProfilePage() {
           <div className="profile-header-info">
             <h1 className="profile-name">{p.name}</h1>
             {meta && <p className="profile-meta">{meta}</p>}
-            {p.intention && (
-              <span className="profile-intention-badge">
-                {p.intention}
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "0.4rem", flexWrap: "wrap" }}>
+              {p.intention && (
+                <span className="profile-intention-badge">
+                  {p.intention}
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 600,
+                  padding: "0.2rem 0.65rem",
+                  borderRadius: "999px",
+                  backgroundColor: isOnline ? "rgba(16, 185, 129, 0.15)" : "rgba(113, 113, 122, 0.15)",
+                  color: isOnline ? "#10b981" : "#71717a",
+                  border: isOnline ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(113, 113, 122, 0.3)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.35rem",
+                }}
+              >
+                <span
+                  style={{
+                    width: "6px",
+                    height: "6px",
+                    borderRadius: "50%",
+                    backgroundColor: isOnline ? "#10b981" : "#71717a",
+                  }}
+                />
+                {isOnline ? "Online Now" : "Offline"}
               </span>
-            )}
+            </div>
           </div>
         </div>
 

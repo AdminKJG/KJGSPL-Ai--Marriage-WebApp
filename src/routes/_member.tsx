@@ -17,6 +17,7 @@ import {
   callIncoming,
   callMissed,
   callRejected,
+  clearCall,
   networkStatus,
   setConfig,
   signedIn,
@@ -246,14 +247,21 @@ function MemberLayout() {
       s.on("call:rejected", (call: Call) => {
         console.log("❌ [Socket] call:rejected received:", call);
         dispatch(callRejected(call));
+        dispatch(clearCall());
       });
-      s.on("call:ended", (call: Call) => {
-        console.log("⬛ [Socket] call:ended received:", call);
-        dispatch(callEnded(call));
-      });
+      const handleSocketCallEnded = (data: any) => {
+        console.log("⬛ [Socket] Call end event received:", data);
+        dispatch(callEnded(data?.call ?? data));
+        dispatch(clearCall());
+      };
+      s.on("call:ended", handleSocketCallEnded);
+      s.on("call:end", handleSocketCallEnded);
+      s.on("webrtc:end", handleSocketCallEnded);
+      s.on("call:cancelled", handleSocketCallEnded);
       s.on("call:missed", (call: Call) => {
-        console.log("📵 [Socket] call:missed received:", call);
+        console.log("ext [Socket] call:missed received:", call);
         dispatch(callMissed(call));
+        dispatch(clearCall());
       });
 
       // message_edited / message_deleted / messages_read — refresh chat

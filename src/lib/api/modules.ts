@@ -878,3 +878,32 @@ export const mapConfigQuery = () =>
     staleTime: 300_000,
   });
 
+export interface PresenceItem {
+  userId: string;
+  online: boolean;
+  lastSeenAt: string | null;
+}
+
+export const presenceApi = {
+  getPresence: (userId: string) =>
+    api<PresenceItem>(`/v1/presence/${userId}`),
+  getAllPresence: () =>
+    api<{ items: PresenceItem[] }>("/v1/presence").then((r) => r.items ?? []),
+};
+
+export const presenceQuery = (userId?: string) =>
+  queryOptions({
+    queryKey: ["presence", userId],
+    queryFn: () => (userId ? presenceApi.getPresence(userId) : null),
+    enabled: !!userId,
+    staleTime: 15_000,
+  });
+
+export const allPresenceQuery = () =>
+  queryOptions({
+    queryKey: ["presence", "all"],
+    queryFn: presenceApi.getAllPresence,
+    staleTime: 15_000,
+  });
+
+

@@ -63,6 +63,7 @@ export interface CallingState {
   token: string | null;
   url: string | null;
   roomName: string | null;
+  endedCallIds: string[];
 }
 
 const initialCallingState: CallingState = {
@@ -71,6 +72,7 @@ const initialCallingState: CallingState = {
   token: null,
   url: null,
   roomName: null,
+  endedCallIds: [],
 };
 
 const callingSlice = createSlice({
@@ -78,7 +80,9 @@ const callingSlice = createSlice({
   initialState: initialCallingState,
   reducers: {
     callIncoming(state, action: PayloadAction<Call>) {
-      state.incomingCall = action.payload;
+      const call = action.payload;
+      if (call?.callId && state.endedCallIds.includes(call.callId)) return;
+      state.incomingCall = call;
     },
     callAccepted(
       state,
@@ -89,6 +93,18 @@ const callingSlice = createSlice({
 
       // Socket payloads can send flat Call object OR nested { call: Call, token: "..." }
       const callObj: Call = payload.call ? payload.call : payload;
+      const callId = callObj?.callId;
+
+      // Prevent late/delayed socket responses or initiate promise resolutions from re-opening an ended call!
+      if (callId && state.endedCallIds.includes(callId)) {
+        console.log(`⛔ [Redux] Ignoring callAccepted for already ended callId: ${callId}`);
+        state.activeCall = null;
+        state.incomingCall = null;
+        state.token = null;
+        state.url = null;
+        state.roomName = null;
+        return;
+      }
 
       // Merge active call data so activeCall is NEVER reset to undefined/null
       state.activeCall = {
@@ -102,24 +118,39 @@ const callingSlice = createSlice({
       state.token = payload.token ?? callObj?.token ?? state.token ?? null;
       state.incomingCall = null;
     },
-    callRejected(state, _action: PayloadAction<Call | undefined>) {
+    callRejected(state, action: PayloadAction<Call | undefined>) {
+      const callId = action.payload?.callId ?? state.activeCall?.callId;
+      if (callId && !state.endedCallIds.includes(callId)) {
+        state.endedCallIds.push(callId);
+      }
       state.incomingCall = null;
       state.activeCall = null;
       state.token = null;
       state.url = null;
       state.roomName = null;
     },
-    callEnded(state, _action: PayloadAction<Call | undefined>) {
+    callEnded(state, action: PayloadAction<Call | undefined>) {
+      const callId = action.payload?.callId ?? state.activeCall?.callId;
+      if (callId && !state.endedCallIds.includes(callId)) {
+        state.endedCallIds.push(callId);
+      }
       state.incomingCall = null;
       state.activeCall = null;
       state.token = null;
       state.url = null;
       state.roomName = null;
     },
-    callMissed(state, _action: PayloadAction<Call | undefined>) {
+    callMissed(state, action: PayloadAction<Call | undefined>) {
+      const callId = action.payload?.callId ?? state.activeCall?.callId;
+      if (callId && !state.endedCallIds.includes(callId)) {
+        state.endedCallIds.push(callId);
+      }
       state.incomingCall = null;
     },
     clearCall(state) {
+      if (state.activeCall?.callId && !state.endedCallIds.includes(state.activeCall.callId)) {
+        state.endedCallIds.push(state.activeCall.callId);
+      }
       state.incomingCall = null;
       state.activeCall = null;
       state.token = null;

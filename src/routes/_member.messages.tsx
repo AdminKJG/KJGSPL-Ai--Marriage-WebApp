@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Avatar, Badge, ErrorState, StateMessage } from "@/components/ui";
-import { conversationsQuery } from "@/lib/api/modules";
+import { conversationsQuery, allPresenceQuery, type PresenceItem } from "@/lib/api/modules";
 
 export const Route = createFileRoute("/_member/messages")({
   component: MessagesLayout,
@@ -26,7 +26,14 @@ function MessagesLayout() {
   const navigate = useNavigate();
   const router = useRouterState();
   const { data, isLoading, error } = useQuery(conversationsQuery());
+  const presenceQueryData = useQuery(allPresenceQuery());
   const [searchQuery, setSearchQuery] = useState("");
+
+  const presenceMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    presenceQueryData.data?.forEach((item: PresenceItem) => map.set(item.userId, item.online));
+    return map;
+  }, [presenceQueryData.data]);
 
   const isIndex = router.location.pathname === "/messages" || router.location.pathname === "/messages/";
 
@@ -189,6 +196,7 @@ function MessagesLayout() {
 
             const profileName = c.profile?.name?.trim() || "Mutual Match";
             const isActive = router.location.pathname === `/messages/${c.profileId}`;
+            const isUserOnline = c.isBot || presenceMap.get(c.profileId) === true;
 
             return (
               <div
@@ -212,7 +220,13 @@ function MessagesLayout() {
                 <div className="row-3 between align-center" style={{ gap: "0.85rem" }}>
                   <div className="whatsapp-avatar-wrapper" style={{ flexShrink: 0 }}>
                     {c.profile && <Avatar profile={c.profile} />}
-                    <span className="whatsapp-online-badge" style={{ background: "var(--rose-active)", borderColor: "var(--card)" }} />
+                    <span
+                      className="whatsapp-online-badge"
+                      style={{
+                        background: isUserOnline ? "#10b981" : "#71717a",
+                        borderColor: "var(--card)",
+                      }}
+                    />
                   </div>
                   <div className="stack-1" style={{ flex: 1, minWidth: 0 }}>
                     <div className="row-2 between align-center" style={{ gap: "0.5rem" }}>

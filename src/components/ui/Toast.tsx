@@ -37,24 +37,27 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((toast: Omit<ToastItem, "id">): string => {
-    const id = Math.random().toString(36).substring(2, 9);
-    const newToast: ToastItem = {
-      id,
-      duration: 5000,
-      ...toast,
-    };
+  const showToast = useCallback(
+    (toast: Omit<ToastItem, "id">): string => {
+      const id = Math.random().toString(36).substring(2, 9);
+      const newToast: ToastItem = {
+        id,
+        duration: 5000,
+        ...toast,
+      };
 
-    setToasts((prev) => [...prev, newToast]);
+      setToasts((prev) => [...prev, newToast]);
 
-    if (newToast.duration && newToast.duration > 0) {
-      setTimeout(() => {
-        removeToast(id);
-      }, newToast.duration);
-    }
+      if (newToast.duration && newToast.duration > 0) {
+        setTimeout(() => {
+          removeToast(id);
+        }, newToast.duration);
+      }
 
-    return id;
-  }, [removeToast]);
+      return id;
+    },
+    [removeToast]
+  );
 
   const showError = useCallback(
     (message: string, title: string = "Error") => {
@@ -121,7 +124,7 @@ function ToastContainer({
         display: "flex",
         flexDirection: "column",
         gap: "0.75rem",
-        maxWidth: "420px",
+        maxWidth: "400px",
         width: "calc(100vw - 2.5rem)",
         pointerEvents: "none",
       }}
@@ -148,15 +151,16 @@ function ToastCard({
         pointerEvents: "auto",
         display: "flex",
         alignItems: "flex-start",
-        gap: "0.875rem",
-        padding: "1rem 1.125rem",
+        gap: "0.85rem",
+        padding: "0.9rem 1.15rem",
         borderRadius: "1rem",
         background: styles.bg,
         border: `1px solid ${styles.border}`,
-        boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15)",
+        borderLeft: `4px solid ${styles.accentColor}`,
+        boxShadow: "0 14px 35px -5px rgba(65, 28, 43, 0.14), 0 4px 12px rgba(65, 28, 43, 0.08)",
         color: styles.color,
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
         animation: "toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
         transformOrigin: "top right",
       }}
@@ -167,18 +171,19 @@ function ToastCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: "2.25rem",
-          height: "2.25rem",
+          width: "2.1rem",
+          height: "2.1rem",
           borderRadius: "0.75rem",
           background: styles.iconBg,
           color: styles.iconColor,
           flexShrink: 0,
+          marginTop: "0.1rem",
         }}
       >
         {styles.icon}
       </div>
 
-      <div style={{ flex: 1, minWidth: 0, paddingTop: "0.1rem" }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
         {toast.title && (
           <div
             style={{
@@ -187,6 +192,7 @@ function ToastCard({
               lineHeight: 1.3,
               marginBottom: "0.2rem",
               color: styles.titleColor,
+              fontFamily: "Georgia, 'Times New Roman', serif",
             }}
           >
             {toast.title}
@@ -196,8 +202,9 @@ function ToastCard({
           style={{
             fontSize: "0.85rem",
             lineHeight: 1.45,
-            opacity: 0.95,
+            color: styles.color,
             wordBreak: "break-word",
+            fontWeight: 500,
           }}
         >
           {toast.message}
@@ -211,8 +218,8 @@ function ToastCard({
         style={{
           background: "transparent",
           border: "none",
-          color: styles.color,
-          opacity: 0.6,
+          color: styles.titleColor,
+          opacity: 0.5,
           cursor: "pointer",
           padding: "0.25rem",
           borderRadius: "0.375rem",
@@ -223,9 +230,9 @@ function ToastCard({
           flexShrink: 0,
         }}
         onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.6")}
+        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
@@ -238,14 +245,15 @@ function getToastStyles(type: ToastType) {
   switch (type) {
     case "error":
       return {
-        bg: "rgba(28, 10, 15, 0.94)",
-        border: "rgba(239, 68, 68, 0.4)",
-        color: "#fecdd3",
-        titleColor: "#ffffff",
-        iconBg: "rgba(239, 68, 68, 0.2)",
-        iconColor: "#f87171",
+        bg: "rgba(255, 253, 250, 0.97)",
+        border: "rgba(225, 29, 72, 0.3)",
+        accentColor: "#be123c",
+        color: "#6b1724",
+        titleColor: "#411c2b",
+        iconBg: "rgba(225, 29, 72, 0.12)",
+        iconColor: "#e11d48",
         icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -254,14 +262,15 @@ function getToastStyles(type: ToastType) {
       };
     case "success":
       return {
-        bg: "rgba(10, 26, 20, 0.94)",
-        border: "rgba(16, 185, 129, 0.4)",
-        color: "#a7f3d0",
-        titleColor: "#ffffff",
-        iconBg: "rgba(16, 185, 129, 0.2)",
-        iconColor: "#34d399",
+        bg: "rgba(255, 253, 250, 0.97)",
+        border: "rgba(16, 185, 129, 0.3)",
+        accentColor: "#10b981",
+        color: "#14532d",
+        titleColor: "#411c2b",
+        iconBg: "rgba(16, 185, 129, 0.12)",
+        iconColor: "#10b981",
         icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
@@ -269,14 +278,15 @@ function getToastStyles(type: ToastType) {
       };
     case "warning":
       return {
-        bg: "rgba(28, 20, 10, 0.94)",
-        border: "rgba(245, 158, 11, 0.4)",
-        color: "#fde68a",
-        titleColor: "#ffffff",
-        iconBg: "rgba(245, 158, 11, 0.2)",
-        iconColor: "#fbbf24",
+        bg: "rgba(255, 253, 250, 0.97)",
+        border: "rgba(217, 119, 6, 0.3)",
+        accentColor: "#d97706",
+        color: "#78350f",
+        titleColor: "#411c2b",
+        iconBg: "rgba(217, 119, 6, 0.12)",
+        iconColor: "#d97706",
         icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
             <line x1="12" y1="9" x2="12" y2="13" />
             <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -286,14 +296,15 @@ function getToastStyles(type: ToastType) {
     case "info":
     default:
       return {
-        bg: "rgba(15, 23, 42, 0.94)",
-        border: "rgba(99, 102, 241, 0.4)",
-        color: "#c7d2fe",
-        titleColor: "#ffffff",
-        iconBg: "rgba(99, 102, 241, 0.2)",
-        iconColor: "#818cf8",
+        bg: "rgba(255, 253, 250, 0.97)",
+        border: "rgba(177, 81, 101, 0.3)",
+        accentColor: "#b15165",
+        color: "#55273b",
+        titleColor: "#411c2b",
+        iconBg: "rgba(177, 81, 101, 0.12)",
+        iconColor: "#b15165",
         icon: (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
